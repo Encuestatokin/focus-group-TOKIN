@@ -439,6 +439,8 @@
     .ab .abo .shot img{width:100%;}
   }
   @media (max-width:480px){ #app{overflow-x:hidden;} .controls .acts .btn{flex:1 1 auto;} .hero h1{font-size:34px;} .count{min-width:0;} }
+  tr.isnew td{background:rgba(46,230,166,.08);}
+  .resp tbody tr[data-ses]:hover td{background:rgba(34,225,255,.07);}
   .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
   .qc{position:relative;text-align:left;border-radius:16px;padding:16px;background:linear-gradient(160deg,var(--surface-2),var(--surface));border:1px solid var(--line-strong);color:#fff;transition:.2s;overflow:hidden;display:flex;flex-direction:column;gap:8px;}
   .qc:hover{border-color:var(--cyan);transform:translateY(-2px);}
@@ -683,7 +685,7 @@ let shownAt = performance.now();
 const urlD = new URLSearchParams(location.search).get('d');
 if(urlD && !A.distribuidor) A.distribuidor = urlD.slice(0,80);
 const isPreview = () => location.hash === '#vista';
-const save = () => { if(isPreview()) return; LS.set('draft', A); LS.set('draftIdx', idx); syncSession(); };
+const save = () => { if(isPreview()) return; LS.set('draft', A); LS.set('draftIdx', idx); };
 /* seguimiento en vivo: cada participante actualiza su sesión mientras responde */
 let sesT = null, beatT = null;
 function syncSession(estado){
@@ -691,7 +693,7 @@ function syncSession(estado){
   clearTimeout(sesT);
   sesT = setTimeout(() => {
     const V = steps(); const st = V[Math.min(idx, V.length - 1)];
-    const body = { tipo:A.tipo || null, comoPide:A.comoPide || null, uso:A.uso || null, nombre:(A.nombre || '').trim().slice(0,80) || null, distribuidor:(A.distribuidor || '').trim().slice(0,80) || null,
+    const body = { tipo:A.tipo || null, comoPide:A.comoPide || null, uso:A.uso || null, nombre:(A.nombre || '').trim().slice(0,80) || null, distribuidor:(A.distribuidor || '').trim().slice(0,80) || null, direccion:(A.direccion || '').trim().slice(0,120) || null,
       idx, total:V.length, step:st ? st.id : null, r:A.r || null, start:A._start || null, estado:estado || 'en curso',
       disp:matchMedia('(max-width:820px)').matches ? 'celular' : 'computadora', upd:{ '.sv':'timestamp' } };
     fetch(api('/sesiones/' + A._sid), { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).catch(() => {});
@@ -706,13 +708,19 @@ const activeQ = () => Q.filter(q => !SCFG.off[q.id]);
 const R0 = id => (A.r || {})[id] || {};
 function setR(id, patch){ A.r = A.r || {}; A.r[id] = { ...(A.r[id] || {}), ...patch }; }
 
-const P_PERFIL = { id:'perfil', t:() => 'Antes de empezar, contanos de tu negocio', s:() => 'Son tres preguntas rápidas.',
+const reqTxt = k => (A[k] || '').trim().length >= 2;
+const P_PERFIL = { id:'perfil', t:() => 'Antes de empezar, contanos de tu negocio', s:() => 'Todos los datos son obligatorios. Los usamos solo para mejorar Tokin.',
   body:() => `<div class="opts">${OPT.tipo.map(o => `<button class="opt ${A.tipo === o[0] ? 'on' : ''}" data-k="tipo" data-v="${o[0]}"><span class="em">${o[2]}</span><span>${o[1]}</span></button>`).join('')}</div>
     <div class="q2">¿Cómo hacés hoy la mayoría de tus pedidos de productos Arcor?</div><div class="chips">${OPT.comoPide.map(o => `<button class="chip ${A.comoPide === o[0] ? 'on' : ''}" data-k="comoPide" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>
     <div class="q2">¿Qué tan seguido usás Tokin?</div><div class="chips">${OPT.uso.map(o => `<button class="chip ${A.uso === o[0] ? 'on' : ''}" data-k="uso" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>
-    <div class="fields"><label>Nombre del negocio <span>(opcional)</span><input class="inp" data-in="nombre" maxlength="80" value="${esc(A.nombre || '')}" placeholder="Ej.: Almacén Rosa"></label>
-      <label>Distribuidor que te atiende <span>(opcional)</span><input class="inp" data-in="distribuidor" maxlength="80" value="${esc(A.distribuidor || '')}"></label></div>`,
-  ok:() => !!(A.tipo && A.comoPide && A.uso) };
+    <div class="fields">
+      <label>Nombre del kiosco o negocio *<input class="inp" data-in="nombre" maxlength="80" value="${esc(A.nombre || '')}" placeholder="Ej.: Kiosco Rosa" autocomplete="organization"></label>
+      <label>Distribuidor que te atiende *<input class="inp" data-in="distribuidor" maxlength="80" value="${esc(A.distribuidor || '')}" placeholder="Ej.: Distribuidora Norte"></label>
+      <label style="grid-column:1/-1">Dirección del negocio *<input class="inp" data-in="direccion" maxlength="120" value="${esc(A.direccion || '')}" placeholder="Calle, número y localidad" autocomplete="street-address"></label></div>
+    <div class="maxn" id="reqHint" style="margin-top:12px">${perfilFalta().length ? 'Falta completar: ' + perfilFalta().join(', ') : '✓ Datos completos'}</div>`,
+  ok:() => !perfilFalta().length };
+function perfilFalta(){ const f = []; if(!A.tipo) f.push('tipo de negocio'); if(!A.comoPide) f.push('cómo hacés tus pedidos'); if(!A.uso) f.push('uso de Tokin');
+  if(!reqTxt('nombre')) f.push('nombre'); if(!reqTxt('distribuidor')) f.push('distribuidor'); if(!reqTxt('direccion')) f.push('dirección'); return f; }
 const P_CIERRE = { id:'cierre', t:() => '¡Último paso!', s:() => 'Si pudieras pedirle una sola mejora a Tokin, ¿cuál sería? (opcional)',
   body:() => `<textarea class="inp" data-in="cambio" maxlength="500" placeholder="Contanos con tus palabras">${esc(A.cambio || '')}</textarea>`, ok:() => true };
 
@@ -739,7 +747,7 @@ let lastRendered = null;
 function renderSurvey(){
   $('#tagline').textContent = 'Focus group';
   $('#topRight').innerHTML = isPreview() ? `<a class="pillbtn" href="#equipo">Salir de la vista previa</a>` : '';
-  $('#foot').innerHTML = isPreview() ? `<span>Tokin Tienda · Vista previa del moderador</span><a href="#moderador">Volver al panel en vivo</a>` : `<span>Tokin Tienda · Focus group con comercios</span><a href="#equipo">Acceso equipo</a>`;
+  $('#foot').innerHTML = isPreview() ? `<span>Tokin Tienda · Vista previa del moderador</span><a href="#moderador">Volver al tablero de respuestas</a>` : `<span>Tokin Tienda · Focus group con comercios</span><a href="#equipo">Acceso equipo</a>`;
   const app = $('#app');
   const pv = isPreview() ? prevBar() : '';
   if(closed && !isPreview()){ app.innerHTML = `<div class="sv"><div class="sv-card welcome"><div class="big-em">🙌</div><h1 class="grad">Encuesta cerrada</h1><p>Gracias por tu interés. Este focus group ya no recibe respuestas.</p></div></div>`; return; }
@@ -758,7 +766,7 @@ function renderSurvey(){
   if(idx === 'prevend'){
     app.innerHTML = `<div class="sv">${pv}<div class="sv-card welcome anim"><div class="big-em">👁</div><h1 class="grad">Fin de la vista previa</h1>
       <p>Recorriste las ${activeQ().length} preguntas activas. Nada de lo que tocaste se guardó.</p>
-      <div class="row-c"><button class="btn" data-pv="restart">Volver a empezar</button><a class="btn primary" href="#moderador" style="text-decoration:none">Ir al panel en vivo</a></div></div></div>`;
+      <div class="row-c"><button class="btn" data-pv="restart">Volver a empezar</button><a class="btn primary" href="#moderador" style="text-decoration:none">Ir al tablero de respuestas</a></div></div></div>`;
     return;
   }
   if(idx === 'sent'){
@@ -784,7 +792,7 @@ function prevBar(){
   const V = steps(); const cur = typeof idx === 'number' ? idx : -1;
   return `<div class="prevbar"><b>👁 Vista previa</b><span class="sp">Podés avanzar sin responder. Nada se guarda.</span>
     <select class="sel" id="pvJump"><option value="-1" ${cur === -1 ? 'selected' : ''}>Bienvenida</option>${V.map((s, i) => `<option value="${i}" ${cur === i ? 'selected' : ''}>${s.q ? 'P' + (activeQ().indexOf(s.q) + 1) + ' · ' + esc(s.q.n) : s.id === 'perfil' ? 'Perfil del negocio' : 'Cierre'}</option>`).join('')}</select>
-    <a class="btn sm" href="#moderador" style="text-decoration:none">Panel en vivo</a></div>`;
+    <a class="btn sm" href="#moderador" style="text-decoration:none">Tablero de respuestas</a></div>`;
 }
 document.addEventListener('change', e => { if(e.target.id === 'pvJump'){ const v = +e.target.value; go(v); } });
 function revealFollow(){
@@ -793,7 +801,7 @@ function revealFollow(){
   const top = f.getBoundingClientRect().top + window.scrollY - 90; window.scrollTo({ top, behavior:'smooth' });
 }
 function rerenderKeepScroll(){ const y = window.scrollY; renderSurvey(); window.scrollTo(0, y); }
-function go(n){ idx = n; save(); renderSurvey(); window.scrollTo(0,0); }
+function go(n){ idx = n; save(); if(typeof n === 'number' && n > 0) syncSession(); renderSurvey(); window.scrollTo(0,0); }
 
 document.addEventListener('click', e => {
   if(isPanel()) return;
@@ -801,7 +809,7 @@ document.addEventListener('click', e => {
   const n = e.target.closest('[data-nav]');
   if(n){
     const a = n.dataset.nav;
-    if(a === 'start'){ if(!A._start) A._start = Date.now(); if(!A._sid && !isPreview()) A._sid = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); go(0); heartbeat(); }
+    if(a === 'start'){ if(!A._start) A._start = Date.now(); if(!A._sid && !isPreview()) A._sid = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); go(0); }
     if(a === 'back') go(idx <= 0 ? -1 : idx - 1);
     if(a === 'next'){
       const V = steps(); const st = V[Math.min(idx, V.length - 1)];
@@ -828,12 +836,15 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-k]'); if(!b) return;
   A[b.dataset.k] = b.dataset.v; save(); rerenderKeepScroll();
 });
-document.addEventListener('input', e => { if(isPanel()) return; const i = e.target.closest('[data-in]'); if(i){ A[i.dataset.in] = i.value; save(); } });
+document.addEventListener('input', e => { if(isPanel()) return; const i = e.target.closest('[data-in]'); if(!i) return; A[i.dataset.in] = i.value; save();
+  const V = steps(); const st = typeof idx === 'number' && idx >= 0 ? V[Math.min(idx, V.length - 1)] : null;
+  if(st){ const nb = $('[data-nav=next]'); if(nb && !isPreview()) nb.disabled = !st.ok(); const hn = $('#reqHint'); if(hn && st.id === 'perfil') hn.textContent = perfilFalta().length ? 'Falta completar: ' + perfilFalta().join(', ') : '✓ Datos completos'; } });
 
 async function submit(btn){
   btn.disabled = true; btn.textContent = 'Enviando…';
   const out = { tipo:A.tipo, comoPide:A.comoPide, uso:A.uso };
-  ['nombre','distribuidor','cambio'].forEach(k => { const v = (A[k] || '').trim(); if(v) out[k] = v.slice(0, k === 'cambio' ? 500 : 80); });
+  ['nombre','distribuidor','direccion','cambio'].forEach(k => { const v = (A[k] || '').trim(); if(v) out[k] = v.slice(0, k === 'cambio' ? 500 : k === 'direccion' ? 120 : 80); });
+  if(A._sid) out.sid = A._sid;
   const ids = new Set(activeQ().map(q => q.id));
   out.r = {}; Object.entries(A.r || {}).forEach(([k, v]) => { if(ids.has(k)) out.r[k] = v; });
   out.dur = A._start ? Math.round((Date.now() - A._start) / 1000) : null;
@@ -843,7 +854,7 @@ async function submit(btn){
   try{
     const r = await fetch(api('/respuestas'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(out) });
     if(!r.ok) throw new Error('HTTP ' + r.status);
-    const sid = A._sid; if(sid){ clearTimeout(sesT); clearInterval(beatT); fetch(api('/sesiones/' + sid), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estado:'enviada', idx:steps().length, upd:{ '.sv':'timestamp' }, r:A.r || null }) }).catch(() => {}); }
+    const sid = A._sid; if(sid){ clearTimeout(sesT); clearInterval(beatT); fetch(api('/sesiones/' + sid), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estado:'enviada', idx:steps().length, total:steps().length, step:'fin', upd:{ '.sv':'timestamp' }, r:out.r, nombre:out.nombre || null, distribuidor:out.distribuidor || null, direccion:out.direccion || null, tipo:out.tipo, comoPide:out.comoPide, uso:out.uso, dur:out.dur, disp:out.disp, cambio:out.cambio || null, start:A._start || null }) }).catch(() => {}); }
     LS.set('done', Date.now()); LS.del('draft'); LS.del('draftIdx'); A = {}; idx = 'sent'; renderSurvey(); window.scrollTo(0,0);
   }catch(err){
     btn.disabled = false; btn.textContent = 'Reintentar envío';
@@ -857,6 +868,7 @@ async function submit(btn){
 let EDITOR = false;   // el acceso del equipo no se recuerda: siempre pide la clave
 LS.del('editor'); LS.del('mod');
 let R = [];
+const jget = async r => { try{ const t = await r.text(); return t ? JSON.parse(t) : null; }catch(e){ return null; } };
 let CFG = { abierta:true, off:{} };
 let F = { uso:'all', tipo:'', dist:'' };
 let SELQ = 'q01';
@@ -868,9 +880,10 @@ function setSync(state, text){ const el = $('#sync'); if(!el) return; el.classNa
 async function loadData(){
   setSync('saving','Actualizando…');
   try{
-    const [r1, r2] = await Promise.all([fetch(api('/respuestas'), {cache:'no-store'}), fetch(api('/config'), {cache:'no-store'})]);
+    const [r1, r2, r3] = await Promise.all([fetch(api('/respuestas'), {cache:'no-store'}), fetch(api('/config'), {cache:'no-store'}), fetch(api('/sesiones'), {cache:'no-store'})]);
     if(!r1.ok) throw new Error('HTTP ' + r1.status);
-    const d = await r1.json() || {}; const c = r2.ok ? (await r2.json() || {}) : {};
+    const d = await jget(r1) || {}; const c = r2.ok ? (await jget(r2) || {}) : {};
+    if(r3.ok){ SES = await jget(r3) || {}; }
     R = Object.entries(d).map(([key, v]) => ({ key, ...v })).sort((a,b) => (b.ts||0) - (a.ts||0));
     CFG = { abierta: c.abierta !== false, off: c.off || {} };
     loaded = true; setSync('ok','En vivo'); renderPanel();
@@ -885,7 +898,7 @@ function renderLogin(){
     ${logged ? `<p>Elegí a dónde querés ir.</p>` : `<p>Ingresá la clave del equipo para entrar como moderador o ver los resultados.</p>
     <form id="pinFrm"><input class="inp" type="password" name="pin" autocomplete="off" placeholder="Clave" required>
     <div class="err" id="pinErr"></div><button class="btn primary" style="width:100%;margin-top:6px">Entrar</button></form>`}
-    ${logged ? `<div class="modepick"><a href="#moderador"><b><span class="live-dot"></span>Moderador en vivo</b><small>Seguí en tiempo real lo que responde cada PDV.</small></a>
+    ${logged ? `<div class="modepick"><a href="#moderador"><b><span class="live-dot"></span>Tablero de respuestas</b><small>Cada encuesta aparece al instante cuando se termina.</small></a>
       <a href="#vista"><b>👁 Recorrer la encuesta</b><small>Pasá por todas las pantallas sin responder.</small></a>
       <a href="#panel"><b>📊 Resultados y Excel</b><small>Análisis por pregunta y exportación.</small></a></div>
       <div style="margin-top:14px;text-align:right"><button class="btn sm ghost" id="bLogout">Cerrar sesión del equipo</button></div>` : ''}</div>`;
@@ -1018,7 +1031,7 @@ function renderPanel(){
   $('#tagline').textContent = 'Focus group · Modo editor';
   $('#topRight').innerHTML = `<div id="sync" class="pillbtn sync ${loaded ? 'ok' : ''}"><i></i><span>${loaded ? 'En vivo' : 'Conectando…'}</span></div>
     <button class="pillbtn" id="bOpen">${CFG.abierta ? '● Encuesta abierta' : '○ Encuesta cerrada'}</button><a class="pillbtn" href="#" id="bView">Ver encuesta</a>
-    <a class="pillbtn" href="#moderador"><span class="live-dot"></span>Moderador en vivo</a><button class="pillbtn" id="bOut">Salir del modo editor</button>`;
+    <a class="pillbtn" href="#moderador"><span class="live-dot"></span>Tablero de respuestas</a><button class="pillbtn" id="bOut">Salir del modo editor</button>`;
   $('#foot').innerHTML = `<span>Tokin Tienda · Modo editor del focus group</span><span>${loaded ? 'Actualizado ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : ''}</span>`;
   const L = filtered(); const SS = Q.map(q => qStats(q, L));
   const act = Q.filter(q => !CFG.off[q.id]).length; const est = act * QSEC + 60;
@@ -1061,9 +1074,9 @@ function renderPanel(){
         ${quotes.length ? `<div class="quotes" style="grid-template-columns:1fr">${quotes.slice(0, 14).map(r => `<div class="quote"><p>“${esc(r.cambio)}”</p><small>${esc(lab('tipo', r.tipo))} · ${esc(lab('uso', r.uso))}${r.distribuidor ? ' · ' + esc(r.distribuidor) : ''}</small></div>`).join('')}</div>` : '<div class="sub">Sin comentarios todavía.</div>'}</div>
     </div>
     <div class="pc block" style="margin-top:16px"><div class="h">Participantes</div><h3>Detalle por PDV</h3><p class="sub">Para borrar una respuesta de prueba, tocá Eliminar dos veces.</p>
-      <div class="tscroll"><table class="resp"><thead><tr><th>Negocio</th><th>Tipo</th><th>Distribuidor</th><th>Uso de Tokin</th><th>Identificó</th><th>Duración</th><th>Dispositivo</th><th>Fecha</th><th></th></tr></thead><tbody>
+      <div class="tscroll"><table class="resp"><thead><tr><th>Negocio</th><th>Dirección</th><th>Tipo</th><th>Distribuidor</th><th>Uso de Tokin</th><th>Identificó</th><th>Duración</th><th>Dispositivo</th><th>Fecha</th><th></th></tr></thead><tbody>
       ${L.map(r => { const qs = Q.filter(q => q.ok && r.r && r.r[q.id] && r.r[q.id].first); const ok = qs.filter(q => isOk(q, r.r[q.id].first)).length;
-        return `<tr><td>${esc(r.nombre || 'Sin nombre')}</td><td>${esc(lab('tipo', r.tipo))}</td><td>${esc(r.distribuidor || '–')}</td><td>${esc(lab('uso', r.uso))}</td><td>${ok} de ${qs.length}</td><td>${r.dur ? mmss(r.dur) : '–'}</td><td>${esc(r.disp || '–')}</td><td>${fdate(r.ts)}</td>
+        return `<tr><td>${esc(r.nombre || 'Sin nombre')}</td><td>${esc(r.direccion || '–')}</td><td>${esc(lab('tipo', r.tipo))}</td><td>${esc(r.distribuidor || '–')}</td><td>${esc(lab('uso', r.uso))}</td><td>${ok} de ${qs.length}</td><td>${r.dur ? mmss(r.dur) : '–'}</td><td>${esc(r.disp || '–')}</td><td>${fdate(r.ts)}</td>
         <td><button class="btn sm danger" data-del="${esc(r.key)}">Eliminar</button></td></tr>`; }).join('')}</tbody></table></div></div>`;
   bindPanel(); drawHeats();
 }
@@ -1133,7 +1146,7 @@ function rowsFor(L){
   const okList = (q, p) => { if(!q.ok) return ''; const k = pImg(q, p); return (q.imgM && k === q.imgM ? (q.okM || []) : q.ok).map(id => areaLabel(k, id)).join(' o '); };
   const ubic = p => p ? `${region(p)} (x ${Math.round(p.x * 100)}%, y ${Math.round(p.y * 100)}%)` : '';
   L.forEach(r => {
-    const base = { 'ID respuesta':pid(r), 'Fecha':fdate(r.ts), 'Negocio':r.nombre || '', 'Tipo de negocio':lab('tipo', r.tipo), 'Distribuidor':r.distribuidor || '', 'Cómo pide':lab('comoPide', r.comoPide), 'Uso de Tokin':lab('uso', r.uso), 'Dispositivo del PDV':r.disp || '' };
+    const base = { 'ID respuesta':pid(r), 'Fecha':fdate(r.ts), 'Negocio':r.nombre || '', 'Dirección':r.direccion || '', 'Tipo de negocio':lab('tipo', r.tipo), 'Distribuidor':r.distribuidor || '', 'Cómo pide':lab('comoPide', r.comoPide), 'Uso de Tokin':lab('uso', r.uso), 'Dispositivo del PDV':r.disp || '' };
     const w = { ...base, 'Duración (seg)':r.dur ?? '' };
     Q.forEach(q => { const a = r.r && r.r[q.id]; if(!a) return;
       const fol = a.f ? flab(q, a.f) : '';
@@ -1164,7 +1177,12 @@ function rowsFor(L){
       Object.entries(bk.ids).sort((a, b) => b[1] - a[1]).forEach(([id, c]) => mapa.push({ 'Nº':qNum(q), 'Iniciativa':INI[q.ini].n, 'Pregunta':q.n,
         'Vista de la pantalla':q.imgM ? (key === q.imgM ? 'Celular' : 'Computadora') : (WIDE.includes(key) ? 'Computadora' : 'Celular'),
         'Elemento / opción':id === '_fuera' ? 'Fuera de los elementos' : areaLabel(key, id), 'Es el correcto':ok ? (ok.includes(id) ? 'Sí' : 'No') : 'No aplica', 'Toques':c, '% de la pregunta':+(c / bk.n * 100).toFixed(1) })); }); });
-  return { resumen, det, toques, wide, mapa };
+  const done = new Set(L.map(r => r.sid).filter(Boolean));
+  const part = [...L.map(r => ({ src:r, ok:true })), ...allSes().filter(s => !isDone(s) && !done.has(s._id)).map(s => ({ src:s, ok:false }))]
+    .map(({ src:s, ok }) => { const sc = scoreOf(s); return { 'Estado':ok ? 'Completa' : 'A medias', 'Fecha':fdate(ok ? s.ts : s.upd), 'Negocio':s.nombre || '', 'Dirección':s.direccion || '', 'Distribuidor':s.distribuidor || '',
+      'Tipo de negocio':s.tipo ? lab('tipo', s.tipo) : '', 'Cómo pide':s.comoPide ? lab('comoPide', s.comoPide) : '', 'Uso de Tokin':s.uso ? lab('uso', s.uso) : '', 'Dispositivo':s.disp || '',
+      'Preguntas respondidas':`${answered(s)} de ${Q.length}`, 'Llegó hasta':ok ? 'Terminó' : stepLabel(s), 'Aciertos al primer toque':sc.n ? `${sc.ok} de ${sc.n}` : '', 'Duración (seg)':ok ? (s.dur ?? '') : '', 'Mejora que pediría':s.cambio || '' }; });
+  return { resumen, det, toques, wide, mapa, part };
 }
 async function exportExcel(){
   const L = filtered(); if(!L.length) return toast('Todavía no hay respuestas para exportar');
@@ -1175,7 +1193,7 @@ async function exportExcel(){
       const keys = Object.keys(rows[0] || {}); ws['!cols'] = keys.map(k => ({ wch: Math.min(60, Math.max(k.length, ...rows.slice(0, 200).map(r => String(r[k] ?? '').length)) + 2) }));
       if(rows.length) ws['!autofilter'] = { ref: X.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:rows.length, c:keys.length - 1 } }) };
       X.utils.book_append_sheet(wb, ws, title); };
-    add(D.resumen, 'Resumen por pregunta'); add(D.mapa, 'Mapa de calor por elemento'); add(D.det, 'Respuestas detalladas'); add(D.wide, 'Por participante'); add(D.toques, 'Coordenadas de toques');
+    add(D.part, 'Participantes'); add(D.resumen, 'Resumen por pregunta'); add(D.mapa, 'Mapa de calor por elemento'); add(D.det, 'Respuestas detalladas'); add(D.wide, 'Por participante'); add(D.toques, 'Coordenadas de toques');
     X.writeFile(wb, name + '.xlsx'); toast('Excel descargado');
   }catch(e){
     const q = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
@@ -1206,29 +1224,19 @@ ${csv}`;
 }
 
 /* =========================================================
-   MODERADOR EN VIVO
+   TABLERO DE RESPUESTAS (en vivo al terminar cada encuesta)
    ========================================================= */
-let SES = {};            // sesiones por id
-let FEED = [];
-let ES = null, pollT = null, clockT = null, rT = null, MSELQ = null, MRANGE = 'hoy';
-let modLive = false;
+let SES = {};            // participaciones (completas e incompletas), por id
+let ES = null, pollT = null, clockT = null, rT = null;
+let modLive = false, firstLoad = true;
+let BF = { estado:'all', dist:'', tipo:'', q:'', rango:'todo' };
+const NEWS = new Set();
 const who = s => s.nombre || (s.tipo ? lab('tipo', s.tipo) : 'PDV') + ' ' + String(s._id || '').slice(-4).toUpperCase();
-const ago = ts => { if(!ts) return '–'; const d = Math.max(0, (Date.now() - ts) / 1000); return d < 60 ? `hace ${Math.round(d)} s` : d < 3600 ? `hace ${Math.round(d/60)} min` : new Date(ts).toLocaleString('es-AR',{ day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); };
-const isNow = s => s.estado !== 'enviada' && s.upd && Date.now() - s.upd < 90000;
-const stepLabel = s => { const q = Q.find(x => x.id === s.step); return q ? `P${activeQ().indexOf(q) + 1} · ${q.n}` : s.step === 'perfil' ? 'Perfil del negocio' : s.step === 'cierre' ? 'Cierre' : s.estado === 'enviada' ? 'Terminó' : '–'; };
-function diffEvents(id, prev, next){
-  if(!next) return;
-  const s = { ...next, _id:id }, t = next.upd || Date.now(), out = [];
-  if(!prev) out.push({ t, html:`<b>${esc(who(s))}</b> empezó la encuesta${next.tipo ? ' · ' + esc(lab('tipo', next.tipo)) : ''}` });
-  const pr = (prev && prev.r) || {}, nr = next.r || {};
-  Object.keys(nr).forEach(k => { const q = Q.find(x => x.id === k); if(!q) return; const a = nr[k], b = pr[k] || {}, n = 'P' + (activeQ().indexOf(q) + 1);
-    if(q.mode === 'ab' && a.pick && a.pick !== b.pick){ const alt = q.alts.find(x => x.k === a.pick) || {}; out.push({ t, html:`<b>${esc(who(s))}</b> eligió <b>Opción ${a.pick.toUpperCase()}</b> («${esc(alt.l || '')}») en ${n}` }); }
-    if(a.first && (!b.first || a.first.x !== b.first.x || a.first.y !== b.first.y)){ const ok = q.ok ? isOk(q, a.first) : null;
-      out.push({ t, html:`<b>${esc(who(s))}</b> tocó «${esc(areaLabel(pImg(q, a.first), a.first.a))}» en ${n} ${ok === null ? '' : ok ? '<span class="ok">✓ correcto</span>' : '<span class="bad">✗</span>'} · ${a.first.t}s` }); }
-    if(a.f && a.f !== b.f) out.push({ t, html:`<b>${esc(who(s))}</b> respondió «${esc(flab(q, a.f))}» en ${n}` }); });
-  if(next.estado === 'enviada' && (!prev || prev.estado !== 'enviada')) out.push({ t, html:`<b>${esc(who(s))}</b> terminó y envió sus respuestas 🎉` });
-  FEED = [...out.reverse(), ...FEED].slice(0, 60);
-}
+const ago = ts => { if(!ts) return '–'; const d = Math.max(0, (Date.now() - ts) / 1000); return d < 60 ? 'recién' : d < 3600 ? `hace ${Math.round(d/60)} min` : d < 86400 ? `hace ${Math.round(d/3600)} h` : new Date(ts).toLocaleString('es-AR',{ day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); };
+const isDone = s => s.estado === 'enviada';
+const answered = s => Q.filter(q => { const a = s.r && s.r[q.id]; return a && (a.first || a.pick); }).length;
+const stepLabel = s => { const q = Q.find(x => x.id === s.step); return q ? `P${Q.indexOf(q) + 1} · ${q.n}` : s.step === 'perfil' ? 'Datos del negocio' : s.step === 'cierre' ? 'Último paso' : '–'; };
+function scoreOf(s){ const qs = Q.filter(q => q.ok && s.r && s.r[q.id] && s.r[q.id].first); return { ok: qs.filter(q => isOk(q, s.r[q.id].first)).length, n: qs.length }; }
 function setAtPath(root, path, data){
   const parts = path.split('/').filter(Boolean); if(!parts.length) return data;
   const r = root && typeof root === 'object' ? { ...root } : {}; let o = r;
@@ -1237,16 +1245,15 @@ function setAtPath(root, path, data){
   return r;
 }
 function applyStream(type, msg, initial){
-  const { path, data } = msg; const before = SES;
+  const { path, data } = msg; const before = SES || {};
   if(type === 'put') SES = setAtPath(SES, path, data);
   else if(type === 'patch'){ Object.entries(data || {}).forEach(([k, v]) => { SES = setAtPath(SES, (path === '/' ? '' : path) + '/' + k, v); }); }
   SES = SES || {};
-  if(!initial){ const ids = new Set([...Object.keys(before || {}), ...Object.keys(SES)]); ids.forEach(id => { if(JSON.stringify((before || {})[id]) !== JSON.stringify(SES[id])) diffEvents(id, (before || {})[id], SES[id]); }); }
+  if(!initial) Object.entries(SES).forEach(([id, s]) => { const p = before[id]; if(s && isDone(s) && !(p && isDone(p))){ NEWS.add(id); toast(`✅ Nueva encuesta completa: ${who({ ...s, _id:id })}`); } });
   scheduleMod();
 }
 function connectLive(){
-  stopLive(); modLive = false;
-  let first = true;
+  stopLive(); modLive = false; let first = true;
   try{
     ES = new EventSource(api('/sesiones'));
     ES.addEventListener('put', e => { const m = JSON.parse(e.data); applyStream('put', m, first && m.path === '/'); if(m.path === '/') first = false; modLive = true; setSync('ok','En vivo'); });
@@ -1254,59 +1261,91 @@ function connectLive(){
     ES.addEventListener('cancel', () => { setSync('error','Sin permiso en Firebase'); startPoll(); });
     ES.onerror = () => { if(!modLive){ try{ ES.close(); }catch(_){} ES = null; startPoll(); } else setSync('saving','Reconectando…'); };
   }catch(e){ startPoll(); }
-  clockT = setInterval(() => scheduleMod(), 5000);
-  fetch(api('/config'), { cache:'no-store' }).then(r => r.ok ? r.json() : null).then(c => { if(c){ CFG = { abierta:c.abierta !== false, off:c.off || {} }; SCFG = { off:c.off || {} }; scheduleMod(); } }).catch(() => {});
+  clockT = setInterval(() => { if(!$('#modalBg').classList.contains('open')) scheduleMod(); }, 30000);
 }
 function startPoll(){
   clearInterval(pollT); let first = !Object.keys(SES).length;
-  const tick = async () => { try{ const r = await fetch(api('/sesiones'), { cache:'no-store' }); if(!r.ok) throw new Error(r.status); applyStream('put', { path:'/', data: await r.json() || {} }, first); first = false; setSync('ok','En vivo · cada 4 s'); }catch(e){ setSync('error', String(e.message).includes('401') ? 'Sin permiso en Firebase' : 'Sin conexión'); } };
-  tick(); pollT = setInterval(() => { if(!document.hidden) tick(); }, 4000);
+  const tick = async () => { try{ const r = await fetch(api('/sesiones'), { cache:'no-store' }); if(!r.ok) throw new Error(r.status); applyStream('put', { path:'/', data: await jget(r) || {} }, first); first = false; modLive = true; setSync('ok','En vivo · cada 5 s'); }catch(e){ setSync('error', String(e.message).includes('401') ? 'Sin permiso en Firebase' : 'Sin conexión'); } };
+  tick(); pollT = setInterval(() => { if(!document.hidden) tick(); }, 5000);
 }
 function stopLive(){ if(ES){ try{ ES.close(); }catch(_){} ES = null; } clearInterval(pollT); clearInterval(clockT); }
-function scheduleMod(){ clearTimeout(rT); rT = setTimeout(renderMod, 250); }
+function scheduleMod(){ clearTimeout(rT); rT = setTimeout(renderMod, 200); }
+const allSes = () => Object.entries(SES || {}).map(([id, s]) => ({ ...s, _id:id })).filter(s => s && typeof s === 'object' && (s.nombre || s.tipo || s.r));
+function boardList(){
+  const t0 = new Date(); t0.setHours(0,0,0,0); const q = BF.q.trim().toLowerCase();
+  return allSes().filter(s => (BF.rango === 'todo' || (s.upd || s.start || 0) >= t0.getTime())
+    && (BF.estado === 'all' || (BF.estado === 'ok' ? isDone(s) : !isDone(s)))
+    && (!BF.dist || (s.distribuidor || '').trim().toLowerCase() === BF.dist) && (!BF.tipo || s.tipo === BF.tipo)
+    && (!q || [s.nombre, s.direccion, s.distribuidor].some(x => (x || '').toLowerCase().includes(q))))
+    .sort((a, b) => (b.upd || 0) - (a.upd || 0));
+}
 function renderMod(){
   if(location.hash !== '#moderador') return;
-  $('#tagline').textContent = 'Focus group · Moderador';
+  $('#tagline').textContent = 'Focus group · Tablero';
   $('#topRight').innerHTML = `<div id="sync" class="pillbtn sync ${modLive ? 'ok' : ''}"><i></i><span>${modLive ? 'En vivo' : 'Conectando…'}</span></div>
-    <a class="pillbtn" href="#vista">👁 Recorrer la encuesta</a>${EDITOR ? '<a class="pillbtn" href="#panel">📊 Resultados y Excel</a>' : ''}<a class="pillbtn" href="#equipo">Salir</a>`;
-  $('#foot').innerHTML = `<span>Tokin Tienda · Moderador en vivo</span><span>Se actualiza solo</span>`;
-  const y = window.scrollY;
-  const all = Object.entries(SES || {}).map(([id, s]) => ({ ...s, _id:id })).filter(s => s && typeof s === 'object');
-  const t0 = new Date(); t0.setHours(0,0,0,0);
-  const L = (MRANGE === 'hoy' ? all.filter(s => (s.upd || s.start || 0) >= t0.getTime()) : all).sort((a,b) => (b.upd || 0) - (a.upd || 0));
-  const now = L.filter(isNow), done = L.filter(s => s.estado === 'enviada');
-  const AQ = activeQ(); if(!MSELQ || !AQ.some(q => q.id === MSELQ)){ const cur = now[0] && Q.find(q => q.id === now[0].step); MSELQ = cur ? cur.id : AQ[0].id; }
-  const qn = q => L.filter(s => s.r && s.r[q.id] && (s.r[q.id].first || s.r[q.id].pick)).length;
-  const sel = Q.find(q => q.id === MSELQ); const s = qStats(sel, L);
-  $('#app').innerHTML = `<section class="hero"><div><div class="eyebrow"><span class="live-dot"></span>Moderador en vivo</div><h1 class="grad">Lo que están respondiendo<br>los PDV, ahora.</h1>
-      <p>Cada toque y cada respuesta aparece acá en el momento, sin recargar.</p></div>
-    <div class="stats"><div class="count" style="--c:linear-gradient(90deg,var(--green),var(--cyan))"><div class="v">${now.length}</div><div class="l">Respondiendo ahora</div></div>
-      <div class="count"><div class="v">${L.length - done.length}</div><div class="l">Sin terminar</div></div>
-      <div class="count" style="--c:linear-gradient(90deg,var(--pink),var(--violet))"><div class="v">${done.length}</div><div class="l">Terminadas</div></div></div></section>
-    <div class="controls"><div class="seg">${[['hoy','Hoy'],['todo','Todas']].map(o => `<button class="${MRANGE === o[0] ? 'on' : ''}" data-mr="${o[0]}">${o[1]}</button>`).join('')}</div>
-      <span class="dur">${L.length} ${L.length === 1 ? 'participante' : 'participantes'} · ${AQ.length} preguntas activas</span>
-      <div class="acts"><a class="btn sm" href="#vista" style="text-decoration:none">👁 Recorrer la encuesta</a><button class="btn sm" id="mLink">Copiar link de la encuesta</button></div></div>
-    <div class="lv">
-      <div class="pc"><div class="h" style="--c2:var(--green)">Participantes</div><h3>Quién está respondiendo</h3><p class="sub">En verde, los que tocaron algo en el último minuto y medio.</p>
-        <div class="plist">${L.length ? L.map(p => { const st = p.estado === 'enviada' ? 'done' : isNow(p) ? 'now' : ''; const pr = p.total ? Math.min(1, (p.estado === 'enviada' ? p.total : p.idx + 1) / p.total) : 0;
-          const last = Object.entries(p.r || {}).map(([k, a]) => ({ q:Q.find(x => x.id === k), a })).filter(x => x.q).pop();
-          return `<div class="pp2 ${st}"><div class="r1"><div><b>${esc(who(p))}</b><br><small>${esc([p.tipo ? lab('tipo', p.tipo) : '', p.distribuidor, p.uso ? lab('uso', p.uso) : '', p.disp].filter(Boolean).join(' · '))}</small></div>
-            <span class="st2 ${st}">${st === 'done' ? 'Terminó' : st === 'now' ? '● Respondiendo' : 'Inactivo'}</span></div>
-            <div class="tr"><i style="width:${pr * 100}%"></i></div>
-            <div class="r3"><span>${p.estado === 'enviada' ? 'Envió sus respuestas' : 'Está en <em>' + esc(stepLabel(p)) + '</em>'}</span><span>${ago(p.upd)}</span></div>
-            ${last ? `<div class="r3" style="margin-top:4px"><span>Última respuesta: <em>${esc(last.q.mode === 'ab' ? (last.a.pick ? 'Opción ' + last.a.pick.toUpperCase() : '') : last.a.first ? areaLabel(pImg(last.q, last.a.first), last.a.first.a) : '')}${last.a.f ? ' · ' + esc(flab(last.q, last.a.f)) : ''}</em></span></div>` : ''}</div>`; }).join('')
-          : '<div class="empty-state" style="padding:30px 10px"><b>Todavía nadie empezó</b>Cuando un PDV abra el link y toque "Empezar", aparece acá.</div>'}</div></div>
-      <div class="pc"><div class="h" style="--c2:var(--amber)">Actividad</div><h3>Lo último que pasó</h3><p class="sub">Toques y respuestas a medida que ocurren.</p>
-        <div class="feed">${FEED.length ? FEED.map(e => `<div class="ev"><time>${new Date(e.t).toLocaleTimeString('es-AR',{ hour:'2-digit', minute:'2-digit', second:'2-digit' })}</time><span>${e.html}</span></div>`).join('') : '<div class="sub">Esperando actividad…</div>'}</div></div>
-    </div>
-    <div class="sech"><div><h2>Resultados en vivo por pregunta</h2><p>Incluye a quienes todavía están respondiendo. Se actualiza con cada toque.</p></div></div>
-    <div class="qchips">${AQ.map((q, i) => `<button class="qchip ${q.id === MSELQ ? 'on' : ''}" data-mq="${q.id}">P${i + 1}<i>${qn(q)}</i></button>`).join('')}</div>
-    <div id="detalle">${qDetail(s)}</div>`;
-  window.scrollTo(0, y); drawHeats();
-  document.querySelectorAll('[data-mr]').forEach(b => b.onclick = () => { MRANGE = b.dataset.mr; renderMod(); });
-  document.querySelectorAll('[data-mq]').forEach(b => b.onclick = () => { MSELQ = b.dataset.mq; renderMod(); });
-  document.querySelectorAll('#detalle [data-selq]').forEach(b => b.onclick = () => { MSELQ = b.dataset.selq; renderMod(); });
+    <a class="pillbtn" href="#panel">📊 Mapa de calor y resultados</a><a class="pillbtn" href="#vista">👁 Recorrer la encuesta</a><a class="pillbtn" href="#equipo">Salir</a>`;
+  $('#foot').innerHTML = `<span>Tokin Tienda · Tablero de respuestas</span><span>Se actualiza solo cuando alguien termina</span>`;
+  const y = window.scrollY, ae = document.activeElement && document.activeElement.id;
+  const all = allSes(), L = boardList();
+  const done = all.filter(isDone), inc = all.filter(s => !isDone(s));
+  const med = median(done.map(s => s.dur).filter(x => x > 0 && x < 3600));
+  const dl = [...new Set(all.map(s => (s.distribuidor || '').trim().toLowerCase()).filter(Boolean))].sort();
+  const t0 = new Date(); t0.setHours(0,0,0,0); const hoy = done.filter(s => (s.upd || 0) >= t0.getTime()).length;
+  $('#app').innerHTML = `<section class="hero"><div><div class="eyebrow"><span class="live-dot"></span>Tablero de respuestas</div><h1 class="grad">Quién respondió<br>la encuesta.</h1>
+      <p>Cada encuesta aparece acá al instante cuando el PDV la termina. Tocá una fila para ver todo lo que respondió.</p></div>
+    <div class="stats"><div class="count" style="--c:linear-gradient(90deg,var(--green),var(--cyan))"><div class="v">${done.length}</div><div class="l">Completas${hoy ? ' · ' + hoy + ' hoy' : ''}</div></div>
+      <div class="count" style="--c:linear-gradient(90deg,var(--amber),var(--pink))"><div class="v">${inc.length}</div><div class="l">A medias</div></div>
+      <div class="count" style="--c:linear-gradient(90deg,var(--pink),var(--violet))"><div class="v">${all.length ? pct(done.length, all.length) : '–'}</div><div class="l">Terminan la encuesta</div></div>
+      <div class="count"><div class="v">${med ? mmss(med) : '–'}</div><div class="l">Duración mediana</div></div></div></section>
+    <div class="controls">
+      <div class="seg">${[['all','Todas'],['ok','Completas'],['inc','A medias']].map(o => `<button class="${BF.estado === o[0] ? 'on' : ''}" data-bf="estado" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>
+      <div class="seg">${[['todo','Siempre'],['hoy','Hoy']].map(o => `<button class="${BF.rango === o[0] ? 'on' : ''}" data-bf="rango" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>
+      <select class="sel" id="bDistF"><option value="">Todos los distribuidores</option>${dl.map(d => `<option value="${esc(d)}" ${BF.dist === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>
+      <select class="sel" id="bTipoF"><option value="">Todo tipo de negocio</option>${OPT.tipo.map(o => `<option value="${o[0]}" ${BF.tipo === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
+      <input class="inp" id="bSearch" placeholder="Buscar negocio, dirección o distribuidor" value="${esc(BF.q)}" style="max-width:300px;padding:8px 12px;font-size:14px">
+      <div class="acts"><button class="btn sm primary" id="bXls2">⬇ Exportar a Excel</button><button class="btn sm" id="mLink">Copiar link</button></div></div>
+    <div class="pc block"><div class="h">Participantes</div><h3>${L.length} ${L.length === 1 ? 'encuesta' : 'encuestas'}</h3>
+      <p class="sub">"A medias" son los que empezaron y no terminaron: se ve hasta qué pregunta llegaron.</p>
+      ${L.length ? `<div class="tscroll"><table class="resp"><thead><tr><th>Negocio</th><th>Dirección</th><th>Distribuidor</th><th>Tipo</th><th>Uso de Tokin</th><th>Estado</th><th>Aciertos</th><th>Duración</th><th>Dispositivo</th><th>Cuándo</th></tr></thead><tbody>
+        ${L.map(s => { const sc = scoreOf(s), d = isDone(s), na = answered(s);
+          return `<tr data-ses="${esc(s._id)}" style="cursor:pointer" class="${NEWS.has(s._id) ? 'isnew' : ''}"><td>${esc(who(s))}${NEWS.has(s._id) ? ' <span class="badge2" style="--c:var(--green)">Nueva</span>' : ''}</td><td>${esc(s.direccion || '–')}</td><td>${esc(s.distribuidor || '–')}</td>
+            <td>${esc(s.tipo ? lab('tipo', s.tipo) : '–')}</td><td>${esc(s.uso ? lab('uso', s.uso) : '–')}</td>
+            <td>${d ? '<span class="st2 done">Completa</span>' : `<span class="st2">A medias · ${na} de ${Q.length}</span><br><small style="color:var(--faint)">Llegó a: ${esc(stepLabel(s))}</small>`}</td>
+            <td>${sc.n ? `${sc.ok} de ${sc.n}` : '–'}</td><td>${d && s.dur ? mmss(s.dur) : '–'}</td><td>${esc(s.disp || '–')}</td><td>${ago(s.upd)}</td></tr>`; }).join('')}</tbody></table></div>`
+        : `<div class="empty-state" style="padding:36px 10px"><b>${all.length ? 'No hay encuestas con este filtro' : 'Todavía no hay encuestas'}</b>${all.length ? 'Probá con otro filtro.' : 'Cuando un PDV termine la encuesta, aparece acá al instante.'}</div>`}</div>`;
+  window.scrollTo(0, y);
+  if(ae === 'bSearch'){ const s = $('#bSearch'); s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  document.querySelectorAll('[data-bf]').forEach(b => b.onclick = () => { BF[b.dataset.bf] = b.dataset.v; renderMod(); });
+  $('#bDistF').onchange = e => { BF.dist = e.target.value; renderMod(); };
+  $('#bTipoF').onchange = e => { BF.tipo = e.target.value; renderMod(); };
+  $('#bSearch').oninput = e => { BF.q = e.target.value; clearTimeout(renderMod._q); renderMod._q = setTimeout(renderMod, 250); };
+  document.querySelectorAll('[data-ses]').forEach(tr => tr.onclick = () => { NEWS.delete(tr.dataset.ses); openSes(tr.dataset.ses); });
   $('#mLink').onclick = async () => { if(location.protocol === 'file:') return toast('Primero publicá este HTML para tener un link.'); toast(await copyText(surveyURL()) ? 'Link copiado' : surveyURL()); };
+  $('#bXls2').onclick = async () => { if(!loaded) await loadPanelData(); exportExcel(); };
+}
+function sesAnswerRows(s){
+  return Q.map((q, i) => { const a = s.r && s.r[q.id];
+    if(!a || !(a.first || a.pick)) return `<tr><td>P${i + 1}</td><td>${esc(q.n)}</td><td colspan="3" style="color:var(--faint)">Sin responder</td></tr>`;
+    const el = q.mode === 'ab' ? `Opción ${a.pick.toUpperCase()}: ${(q.alts.find(x => x.k === a.pick) || {}).l || ''}` : areaLabel(pImg(q, a.first), a.first.a);
+    const ok = q.mode === 'ab' || !q.ok ? '–' : isOk(q, a.first) ? '<span style="color:var(--green)">✓ Sí</span>' : '<span style="color:var(--red)">✗ No</span>';
+    const fc = !a.f ? '' : q.f.correct ? (a.f === q.f.correct ? ' <span style="color:var(--green)">✓</span>' : ' <span style="color:var(--red)">✗</span>') : '';
+    return `<tr><td>P${i + 1}</td><td>${esc(q.n)}</td><td>${esc(el)}</td><td>${ok}</td><td>${a.f ? esc(flab(q, a.f)) + fc : '–'}</td></tr>`; }).join('');
+}
+function openSes(id){
+  const s = { ...(SES[id] || {}), _id:id }; const sc = scoreOf(s);
+  showModal(`<div class="eyebrow">${isDone(s) ? 'Encuesta completa' : 'Encuesta a medias'}</div><h3>${esc(who(s))}</h3>
+    <p style="margin:0 0 4px">${esc([s.direccion, s.distribuidor].filter(Boolean).join(' · ') || '–')}</p>
+    <p class="sub" style="color:var(--faint);margin:0 0 14px">${esc([s.tipo ? lab('tipo', s.tipo) : '', s.comoPide ? lab('comoPide', s.comoPide) : '', s.uso ? lab('uso', s.uso) : '', s.disp].filter(Boolean).join(' · '))}${isDone(s) && s.dur ? ' · duró ' + mmss(s.dur) : ''} · ${ago(s.upd)}</p>
+    <div class="mini3" style="margin-bottom:14px"><div><b>${answered(s)} / ${Q.length}</b><small>Preguntas respondidas</small></div><div><b>${sc.n ? sc.ok + ' / ' + sc.n : '–'}</b><small>Aciertos al primer toque</small></div><div><b>${isDone(s) ? 'Sí' : 'No'}</b><small>Terminó</small></div></div>
+    ${!isDone(s) ? `<p style="color:var(--amber);margin:0 0 12px">Dejó en: ${esc(stepLabel(s))}</p>` : ''}
+    <div class="tscroll"><table class="resp"><thead><tr><th>Nº</th><th>Pregunta</th><th>Tocó / eligió</th><th>Acertó</th><th>Seguimiento</th></tr></thead><tbody>${sesAnswerRows(s)}</tbody></table></div>
+    ${s.cambio ? `<div class="quote" style="margin-top:14px"><p>“${esc(s.cambio)}”</p><small>Mejora que pediría</small></div>` : ''}
+    <div class="acts"><button class="btn primary" data-close>Cerrar</button></div>`);
+}
+async function loadPanelData(){
+  try{ const [r1, r2] = await Promise.all([fetch(api('/respuestas'), { cache:'no-store' }), fetch(api('/config'), { cache:'no-store' })]);
+    if(r1.ok){ const d = await jget(r1) || {}; R = Object.entries(d).map(([key, v]) => ({ key, ...v })).sort((a,b) => (b.ts||0) - (a.ts||0)); loaded = true; }
+    if(r2.ok){ const c = await jget(r2) || {}; CFG = { abierta:c.abierta !== false, off:c.off || {} }; } }catch(e){}
 }
 
 /* =========================================================
@@ -1322,7 +1361,7 @@ async function route(){
   if(hsh === '#vista'){
     if(!MOD && !EDITOR){ location.hash = '#equipo'; return; }
     if(!surveyDraft) surveyDraft = { A, idx }; A = {}; idx = -1; lastRendered = null;
-    try{ const r = await fetch(api('/config'), { cache:'no-store' }); if(r.ok){ const c = await r.json() || {}; SCFG = { off:c.off || {} }; } }catch(e){}
+    try{ const r = await fetch(api('/config'), { cache:'no-store' }); if(r.ok){ const c = await jget(r) || {}; SCFG = { off:c.off || {} }; } }catch(e){}
     renderSurvey(); window.scrollTo(0,0); return;
   }
   if(surveyDraft){ A = surveyDraft.A; idx = surveyDraft.idx; surveyDraft = null; lastRendered = null; }
@@ -1332,10 +1371,10 @@ async function route(){
     refreshT = setInterval(() => { if(!document.hidden && !$('#modalBg').classList.contains('open')) loadData(); }, 20000);
     return;
   }
-  renderSurvey(); if(A._sid && typeof idx === 'number' && idx >= 0) heartbeat();
+  renderSurvey();
   try{
     const r = await fetch(api('/config'), { cache:'no-store' });
-    if(r.ok){ const c = await r.json() || {}; closed = c.abierta === false; SCFG = { off:c.off || {} }; }
+    if(r.ok){ const c = await jget(r) || {}; closed = c.abierta === false; SCFG = { off:c.off || {} }; }
     if(!isPanel() && (idx === -1 || closed)) rerenderKeepScroll();
   }catch(e){}
 }
