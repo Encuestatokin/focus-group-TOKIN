@@ -988,7 +988,9 @@ function renderLogin(){
     <div class="err" id="pinErr"></div><button class="btn primary" style="width:100%;margin-top:6px">Entrar</button></form>`}
     ${logged ? `<div class="modepick"><a href="#moderador"><b><span class="live-dot"></span>Tablero de respuestas</b><small>Cada encuesta aparece al instante cuando se termina.</small></a>
       <a href="#vista"><b>👁 Recorrer la encuesta</b><small>Pasá por todas las pantallas sin responder.</small></a>
-      <a href="#panel"><b>📊 Resultados y Excel</b><small>Análisis por pregunta y exportación.</small></a></div>
+      <a href="#panel"><b>📊 Resultados y Excel</b><small>Análisis por pregunta y exportación.</small></a>
+      <a href="tareas.html#equipo"><b>🧭 Resultados de las tareas</b><small>Prototipos navegables: quién encontró cada función, con o sin pista.</small></a>
+      <a href="visita.html"><b>🎙 Visitas a PDV</b><small>Guía con grabadora, citas y tablero de las visitas.</small></a></div>
       <div style="margin-top:14px;text-align:right"><button class="btn sm ghost" id="bLogout">Cerrar sesión del equipo</button></div>` : ''}</div>`;
   const f = $('#pinFrm');
   if(f) f.onsubmit = e => {
