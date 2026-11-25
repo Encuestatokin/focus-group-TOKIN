@@ -662,8 +662,9 @@ const Q = [
     t:'Ya tenés cuenta y entrás a Tokin para hacer el pedido de la semana. Tocá lo primero que te llama la atención.', s:'No hay respuesta correcta. Podés bajar para ver la pantalla completa antes de tocar.', ok:null,
     f:{ q:'Para armar tu pedido de la semana, ¿qué debería estar primero en esta pantalla?', opts:[['promos','Las promos y ofertas del día'],['pf','Un pedido ya armado con lo que más compro'],['sugeridos','Productos sugeridos para mi negocio'],['masv','Lo más vendido en mi zona'],['nuevo','Los productos nuevos']] } },
   /* 3 · AHORRO MENSUAL — foco: visibilidad y comprensión del indicador */
-  { id:'q04c', ini:'ahorro', img:'home_top', n:'Ahorro mensual · Lo mira y lo entiende',
-    t:'Mirá la parte de arriba de esta pantalla. Tocá lo primero que te llama la atención.', s:'No hay respuesta correcta.', ok:null,
+  { id:'q04c', ini:'ahorro', img:'home_top', n:'Ahorro mensual · Le interesa y lo entiende',
+    gate:{ q:'¿Te gustaría ver en Tokin cuánta plata ahorraste cada mes con las promos?', s:'Elegí una opción.', opts:[['si','Sí, me interesa'],['no','No me interesa'],['igual','Me da igual']], show:['si'] },
+    t:'Así se vería en la home de Tokin. Mirá la parte de arriba de la pantalla y tocá lo primero que te llama la atención.', s:'No hay respuesta correcta.', ok:null,
     f:{ q:'¿Qué es el número que aparece en amarillo ($ 184.350)?', opts:[['ahorro','Lo que ahorré este mes con promos'],['saldo','Mi saldo disponible'],['deuda','Lo que le debo al distribuidor'],['carrito','Lo que llevo en el carrito'],['nose','No sé']], correct:'ahorro' } },
   /* 4 · PROMO PROGRESIVA — foco: preferencia de diseño + comprensión real de la mecánica */
   { id:'q23c', ini:'progresiva', mode:'ab', blind:true, n:'Promo progresiva · Qué diseño se entiende mejor',
@@ -838,7 +839,14 @@ function qBody(q){
   return shotHTML(qImg(q), { tap:q.id, dots: p && pImg(q, p) === qImg(q) ? [{ x:p.x, y:p.y, c:'tapdot' }] : [] })
     + `<div class="hint">${p ? (a.f ? '✓ Listo' : '✓ Listo. Ahora respondé la pregunta ' + (matchMedia('(min-width:900px)').matches ? 'de al lado →' : 'de abajo ↓')) : '👆 Tocá sobre la pantalla'}</div>`;
 }
-function steps(){ const qs = activeQ(); return [P_PERFIL, ...qs.map((q, i) => qStep(q, i, qs.length)), P_CIERRE]; }
+const gateShow = q => !q.gate || isPreview() || q.gate.show.includes(R0(q.id).g);
+function gateStep(q, i, total){
+  return { id:q.id + '_g', q:null, gq:q, t:() => q.gate.q, s:() => q.gate.s || 'Elegí una opción.',
+    head:`<div class="ini"><span class="qnum">PREGUNTA ${i + 1} DE ${total}</span></div>`,
+    body:() => `<div class="opts list">${q.gate.opts.map(o => `<button class="opt ${R0(q.id).g === o[0] ? 'on' : ''}" data-gq="${q.id}" data-v="${o[0]}"><span>${esc(o[1])}</span></button>`).join('')}</div>`,
+    ok:() => !!R0(q.id).g };
+}
+function steps(){ const qs = activeQ(); return [P_PERFIL, ...qs.flatMap((q, i) => q.gate ? [gateStep(q, i, qs.length), ...(gateShow(q) ? [qStep(q, i, qs.length)] : [])] : [qStep(q, i, qs.length)]), P_CIERRE]; }
 
 let lastRendered = null;
 function renderSurvey(){
@@ -928,6 +936,10 @@ document.addEventListener('click', e => {
   }
   const ab = e.target.closest('[data-ab]');
   if(ab){ const a = R0(ab.dataset.ab); const patch = { pick:ab.dataset.v }; if(!a.pick) patch.t = +((performance.now() - shownAt) / 1000).toFixed(1); setR(ab.dataset.ab, patch); save(); rerenderKeepScroll(); if(!a.pick) revealFollow(); return; }
+  const gq = e.target.closest('[data-gq]');
+  if(gq){ const q = Q.find(x => x.id === gq.dataset.gq); A.r = A.r || {};
+    A.r[q.id] = q.gate.show.includes(gq.dataset.v) ? { ...(A.r[q.id] || {}), g:gq.dataset.v } : { g:gq.dataset.v };
+    save(); rerenderKeepScroll(); return; }
   const fq = e.target.closest('[data-fq]');
   if(fq){ setR(fq.dataset.fq, { f:fq.dataset.v }); save(); rerenderKeepScroll(); if(matchMedia('(max-width:640px)').matches){ const nb = $('[data-nav=next]'); if(nb) nb.animate([{ transform:'scale(1)' },{ transform:'scale(1.04)' },{ transform:'scale(1)' }], { duration:450 }); } return; }
   const b = e.target.closest('[data-k]'); if(!b) return;
@@ -1030,6 +1042,7 @@ function qStats(q, L){
     s.byKey = {}; f.forEach(a => { const k = pImg(q, a.first); const o = s.byKey[k] = s.byKey[k] || { n:0, ids:{} }; o.n++; const id = a.first.a || '_fuera'; o.ids[id] = (o.ids[id] || 0) + 1; });
     if(q.ok){ s.ok = f.filter(a => isOk(q, a.first)).length; s.find = pn(s.ok, s.n); }
   }
+  if(q.gate){ const g = rs.filter(a => a.g); s.gn = g.length; s.gd = q.gate.opts.map(o => ({ v:o[0], l:o[1], c:g.filter(a => a.g === o[0]).length })); s.gyes = g.filter(a => q.gate.show.includes(a.g)).length; }
   const fr = rs.filter(a => a.f); s.fn = fr.length;
   s.fd = q.f.opts.map(o => ({ v:o[0], l:o[1], c: fr.filter(a => a.f === o[0]).length }));
   if(q.f.correct){ s.fok = fr.filter(a => a.f === q.f.correct).length; s.fScore = pn(s.fok, s.fn); s.fKind = 'Comprensión'; }
@@ -1121,7 +1134,7 @@ function rCard(s){
   }
   const fol = `<div class="kick2">${esc(q.f.correct && q.mode !== 'ab' ? q.f.q : (QFK[q.id] || q.f.q))}</div>${sbars(s.fd, s.fn, c, { correct:q.f.correct, pos:q.f.pos })}`;
   return `<div class="pc rc" style="--rc:${c}"><div class="rc-h"><span class="badge2" style="--c:${c};margin:0">P${qNum(q)} · ${esc(INI[q.ini].n)}</span><span class="rc-n">${s.n} ${s.n === 1 ? 'respuesta' : 'respuestas'}</span></div>
-    <div class="rc-t">${esc(shortN(q))}</div>${main}${fol}
+    <div class="rc-t">${esc(shortN(q))}</div>${q.gate ? `<div class="big2" style="margin-bottom:12px"><div class="bigk"><b style="color:${hColor(s.gn ? s.gyes / s.gn : null)}">${s.gn ? pct(s.gyes, s.gn) : '–'}</b><small>Le interesa ver su ahorro · ${s.gn} ${s.gn === 1 ? 'respuesta' : 'respuestas'}</small></div></div>${sbars(s.gd, s.gn, c)}<div class="kick2">Los que dijeron que sí, al ver la pantalla</div>` : ''}${main}${fol}
     ${q.mode !== 'ab' ? `<button class="lnk" data-gomap="${q.id}">🔥 Ver mapa de calor →</button>` : ''}</div>`;
 }
 function mapView(s){
@@ -1274,7 +1287,7 @@ function rowsFor(L){
     'Respuestas':s.n, '% identificó (primer toque)':q.ok && s.n ? +(s.find * 100).toFixed(1) : (q.mode === 'ab' ? '' : 'Sin respuesta correcta'),
     'Opción A (%)':q.mode === 'ab' && s.n ? +(s.cnt.a / s.n * 100).toFixed(1) : '', 'Opción B (%)':q.mode === 'ab' && s.n ? +(s.cnt.b / s.n * 100).toFixed(1) : '', 'Opción C (%)':q.mode === 'ab' && s.n && 'c' in s.cnt ? +(s.cnt.c / s.n * 100).toFixed(1) : '',
     'Elemento más tocado':q.mode === 'ab' ? '' : (s.areas[0] ? s.areas[0][0] : ''), 'Tiempo mediano (seg)':s.tm ?? '', 'Toques promedio':s.taps != null ? +s.taps.toFixed(2) : '',
-    'Pregunta de seguimiento':q.f.q, 'Respuesta más elegida':s.top && s.fn ? s.top.l : '', '% respuesta más elegida':s.top && s.fn ? +(s.top.c / s.fn * 100).toFixed(1) : '',
+    '% le interesa (pregunta previa)':q.gate && s.gn ? +(s.gyes / s.gn * 100).toFixed(1) : '', 'Pregunta de seguimiento':q.f.q, 'Respuesta más elegida':s.top && s.fn ? s.top.l : '', '% respuesta más elegida':s.top && s.fn ? +(s.top.c / s.fn * 100).toFixed(1) : '',
     'Tipo de métrica':s.fKind || '', '% correcta / positiva':s.fScore != null && s.fn ? +(s.fScore * 100).toFixed(1) : '', 'Hallazgo':finding(s).replace(/<[^>]+>/g,'').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>') }; });
   const det = [], toques = [], wide = [];
   const vista = (q, p) => q.imgM ? (pImg(q, p) === q.imgM ? 'Celular' : 'Computadora') : (WIDE.includes(q.img) ? 'Computadora' : 'Celular');
@@ -1284,6 +1297,7 @@ function rowsFor(L){
     const base = { 'ID respuesta':pid(r), 'Fecha':fdate(r.ts), 'Negocio':r.nombre || '', 'Dirección':r.direccion || '', 'Tipo de negocio':lab('tipo', r.tipo), 'Distribuidor':r.distribuidor || '', 'Cómo pide':lab('comoPide', r.comoPide), 'Uso de Tokin':lab('uso', r.uso), 'Dispositivo del PDV':r.disp || '' };
     const w = { ...base, 'Duración (seg)':r.dur ?? '' };
     Q.forEach(q => { const a = r.r && r.r[q.id]; if(!a) return;
+      if(q.gate){ const go = q.gate.opts.find(o => o[0] === a.g); w[`P${qNum(q)} · ¿le interesa ver su ahorro?`] = go ? go[1] : ''; if(!a.first && !a.pick) return; }
       const fol = a.f ? flab(q, a.f) : '';
       const fc = !a.f ? '' : q.f.correct ? (a.f === q.f.correct ? 'Sí' : 'No') : q.f.pos ? (q.f.pos.includes(a.f) ? 'Sí' : 'No') : 'No aplica';
       let el = '', ok = 'No aplica', detalle = '', exp = '', last = '', ub = '', vis = '';
@@ -1558,8 +1572,8 @@ function confirmarBorrado(sids, keys, nombres, after){
 const who = s => s.nombre || (s.tipo ? lab('tipo', s.tipo) : 'PDV') + ' ' + String(s._id || '').slice(-4).toUpperCase();
 const ago = ts => { if(!ts) return '–'; const d = Math.max(0, (Date.now() - ts) / 1000); return d < 60 ? 'recién' : d < 3600 ? `hace ${Math.round(d/60)} min` : d < 86400 ? `hace ${Math.round(d/3600)} h` : new Date(ts).toLocaleString('es-AR',{ day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); };
 const isDone = s => s.estado === 'enviada';
-const answered = s => Q.filter(q => { const a = s.r && s.r[q.id]; return a && (a.first || a.pick); }).length;
-const stepLabel = s => { const q = Q.find(x => x.id === s.step); return q ? `P${Q.indexOf(q) + 1} · ${q.n}` : s.step === 'perfil' ? 'Datos del negocio' : s.step === 'cierre' ? 'Último paso' : '–'; };
+const answered = s => Q.filter(q => { const a = s.r && s.r[q.id]; return a && (a.first || a.pick || (q.gate && a.g && !q.gate.show.includes(a.g))); }).length;
+const stepLabel = s => { const q = Q.find(x => x.id === s.step || x.id + '_g' === s.step); return q ? `P${Q.indexOf(q) + 1} · ${q.n}` : s.step === 'perfil' ? 'Datos del negocio' : s.step === 'cierre' ? 'Último paso' : '–'; };
 function scoreOf(s){ const qs = Q.filter(q => q.ok && s.r && s.r[q.id] && s.r[q.id].first); return { ok: qs.filter(q => isOk(q, s.r[q.id].first)).length, n: qs.length }; }
 function setAtPath(root, path, data){
   const parts = path.split('/').filter(Boolean); if(!parts.length) return data;
