@@ -322,16 +322,7 @@ const TASKS = [
     t:'Querés comprar Mac & Cheese de Arcor y te gustaría saber si tiene algún descuento. Buscalo en la app.',
     tShort:'Fijate si Mac & Cheese tiene algún descuento.',
     okMsg:'¡Listo! Lo encontraste.',
-    ask:{ q:'¿De cuánto es el descuento?', opts:['5%','10%','15%','No me fijé'], ok:'5%', kpi:'Dijo bien el descuento (5%)' } },
-  { id:'promovol', n:'Descuento por volumen', start:'plandig', optimal:1,
-    hints:{ plandig:['bdxv'], plist:['des','filtros'], pfiltros:['dxv'], pfiltros2:['aplicar'] },
-    hintAfterMisses:3, hintAfterSec:25,
-    funnel:[['Promociones',['plandig']]],
-    screens:['plandig','plist','pfiltros','pfiltros2'],
-    t:'Estás en la sección Promociones de Tokin. Querés ver todos los productos que tienen descuento por volumen. Buscalos.',
-    tShort:'Encontrá los productos con descuento por volumen.',
-    okMsg:'¡Listo! Encontraste los productos con descuento por volumen.',
-    ask:{ q:'¿Qué significa "Descuento por volumen"?', opts:['Te regalan un producto','Cuanto más comprás, menos pagás por unidad','Es un descuento en todos los productos','No sé'], ok:'Cuanto más comprás, menos pagás por unidad', kpi:'Entendió qué es Dto. x Volumen' } }
+    ask:{ q:'¿De cuánto es el descuento?', opts:['5%','10%','15%','No me fijé'], ok:'5%', kpi:'Dijo bien el descuento (5%)' } }
 ];
 const PTQ = new URLSearchParams(location.search).get('t'), PT = (PTQ && TASKS.filter(t => PTQ.split(',').includes(t.id)).length) ? TASKS.filter(t => PTQ.split(',').includes(t.id)) : TASKS;
 
