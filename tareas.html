@@ -62,6 +62,15 @@
   .scale button{padding:14px 0;border-radius:12px;border:1px solid var(--line-strong);background:rgba(5,8,30,.4);font-weight:700;font-size:18px;cursor:pointer;}
   .scale button.on{border-color:var(--cyan);background:rgba(34,225,255,.16);}
   .scale-l{display:flex;justify-content:space-between;font-size:12px;color:var(--faint);margin-top:6px;}
+  .pvbar{max-width:430px;margin:0 auto 10px;padding:8px 12px;border-radius:12px;background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#FFD23F;font-size:13px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;}
+  .pvbar b{font-weight:800;} .pvbar .acts{display:flex;gap:6px;flex-wrap:wrap;}
+  .pvbar button{font:inherit;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid rgba(255,210,63,.5);background:transparent;color:#FFD23F;cursor:pointer;}
+  .pvbar button.on{background:#FFD23F;color:#14217A;}
+  .zv{position:absolute;z-index:2;border:2px dashed rgba(34,225,255,.9);background:rgba(34,225,255,.10);border-radius:8px;pointer-events:none;}
+  .zv.ok{border:2px solid #2BE38A;background:rgba(43,227,138,.18);} .zv.nav{border-color:#B47CFF;background:rgba(180,124,255,.14);}
+  .zv em{position:absolute;left:2px;top:2px;font-style:normal;font-size:9px;line-height:1.1;font-weight:700;background:rgba(10,14,40,.85);color:#fff;padding:1px 4px;border-radius:4px;max-width:96%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  .pvlist{display:grid;gap:10px;margin-top:14px;} .pvt{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px;border-radius:14px;border:1px solid var(--line,rgba(255,255,255,.14));background:rgba(255,255,255,.04);}
+  .pvt b{display:block;font-size:16px;} .pvt span{font-size:13px;opacity:.75;}
   .hint{position:absolute;z-index:3;border:3px solid var(--amber);border-radius:12px;box-shadow:0 0 0 9999px rgba(3,5,20,.38),0 0 22px var(--amber);pointer-events:none;animation:hp 1.3s ease-in-out infinite;}
   .hint + .hint{box-shadow:0 0 22px var(--amber);}
   @keyframes hp{50%{transform:scale(1.06);}}
@@ -324,7 +333,7 @@ const TASKS = [
     okMsg:'¡Listo! Lo encontraste.',
     ask:{ q:'¿De cuánto es el descuento?', opts:['5%','10%','15%','No me fijé'], ok:'5%', kpi:'Dijo bien el descuento (5%)' } }
 ];
-const PTQ = new URLSearchParams(location.search).get('t'), PT = (PTQ && TASKS.filter(t => PTQ.split(',').includes(t.id)).length) ? TASKS.filter(t => PTQ.split(',').includes(t.id)) : TASKS;
+const PTQ = new URLSearchParams(location.search).get('t'); let PT = (PTQ && TASKS.filter(t => PTQ.split(',').includes(t.id)).length) ? TASKS.filter(t => PTQ.split(',').includes(t.id)) : TASKS;
 
 /* ---------- utilidades ---------- */
 const $ = s => document.querySelector(s);
@@ -337,7 +346,7 @@ const median = a => { if(!a.length) return null; const s = [...a].sort((x, y) =>
 const pct = (n, d) => d ? Math.round(n / d * 100) + '%' : '–';
 
 /* ================= PDV ================= */
-let P = null, TI = 0, RUN = null;
+let P = null, TI = 0, RUN = null, PV = false, PVZ = false;
 function startPDV(){
   bar(''); $('#hsub').textContent = 'Probá la app';
   P = P || { negocio:'', distribuidor:'', uso:'' };
@@ -355,9 +364,9 @@ function startPDV(){
 }
 function brief(){
   const T = PT[TI];
-  $('#app').innerHTML = `<div class="card"><div class="eyebrow">Tarea ${TI + 1} de ${PT.length}</div><h1>${esc(T.t)}</h1>
+  $('#app').innerHTML = `${PV ? pvBar() : ''}<div class="card"><div class="eyebrow">Tarea ${TI + 1} de ${PT.length}</div><h1>${esc(T.t)}</h1>
     <p class="sub">Vas a ver la app de Tokin. Tocá donde tocarías para hacerlo. Podés bajar en las pantallas. Si no lo encontrás, no pasa nada: tocá "No lo encuentro".</p></div>`;
-  bar(`<button class="btn primary" id="bGo">Empezar la tarea</button>`);
+  bar(`<button class="btn primary" id="bGo">Empezar la tarea</button>`); if(PV) bindPv();
   $('#bGo').onclick = () => { RUN = { task:T.id, start:performance.now(), screen:T.start, path:[T.start], taps:[] }; screen(); };
 }
 const HINT_TXT = { toques:'tocó varias veces sin avanzar', tiempo:'pasó mucho tiempo sin avanzar', boton:'tocó "No lo encuentro"' };
@@ -380,7 +389,7 @@ function paintHint(scroll){
 function screen(){
   const T = PT[TI], S = SCREENS[RUN.screen];
   RUN.miss = 0; clearTimeout(RUN.timer);
-  $('#app').innerHTML = `<div class="task"><div class="tl">Tu tarea</div><p>${esc(T.tShort)}</p></div>
+  $('#app').innerHTML = `${PV ? pvBar() : ''}<div class="task"><div class="tl">Tu tarea</div><p>${esc(T.tShort)}</p></div>
     <div class="hintmsg" id="hintmsg" hidden>💡 Te damos una pista: probá tocando donde brilla.</div>
     <div class="phone" id="ph"><img src="${IMGS[S.img]}" alt="${esc(S.n)}" draggable="false"><div class="hit" id="hit"></div></div>`;
   bar(`${RUN.path.length > 1 ? '<button class="btn" id="bBack" style="flex:0 0 auto">‹ Atrás</button>' : ''}<button class="btn" id="bNo">No lo encuentro</button>`);
@@ -390,7 +399,8 @@ function screen(){
     let prev = T.start; for(let i = RUN.path.length - 2; i >= 0; i--){ if(RUN.path[i] !== RUN.screen){ prev = RUN.path[i]; break; } }
     RUN.screen = prev; RUN.path.push(prev); screen(); window.scrollTo(0, 0); };
   setTimeout(() => paintHint(RUN.help), 250);
-  if(!RUN.help && T.hintAfterSec) RUN.timer = setTimeout(() => giveHint('tiempo'), T.hintAfterSec * 1000);
+  if(PV){ bindPv(); paintZones(); }
+  if(!RUN.help && T.hintAfterSec && !PV) RUN.timer = setTimeout(() => giveHint('tiempo'), T.hintAfterSec * 1000);
   $('#hit').onclick = e => {
     const r = e.currentTarget.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
     const z = zoneAt(RUN.screen, x, y), t = +((performance.now() - RUN.start) / 1000).toFixed(1), nav = !!(z && (z.go || z.done));
@@ -411,13 +421,13 @@ function finish(ok){
     <p class="sub">${ok ? '¿Qué tan fácil te resultó?' : '¿Qué tan difícil te resultó encontrarlo?'}</p>
     <div class="scale">${[1,2,3,4,5].map(n => `<button data-sc="${n}">${n}</button>`).join('')}</div><div class="scale-l"><span>Muy difícil</span><span>Muy fácil</span></div>
     <label class="f" style="text-align:left">¿Dónde lo buscarías vos? (opcional)</label><input class="inp" id="where" maxlength="200" placeholder="Contanos con tus palabras">
-    <button class="btn primary full" id="bNext" style="margin-top:16px" disabled>${TI < PT.length - 1 ? 'Siguiente tarea' : 'Terminar'}</button></div>`;
+    <button class="btn primary full" id="bNext" style="margin-top:16px" disabled>${PV ? 'Volver a las tareas' : TI < PT.length - 1 ? 'Siguiente tarea' : 'Terminar'}</button>${PV ? '<p class="sub" style="font-size:12px;margin-top:8px">Vista previa · esta respuesta no se guarda.</p>' : ''}</div>`;
   document.body.appendChild(ov); bar('');
-  const need = ok && T.ask, chk = () => { $('#bNext').disabled = !(RUN.seq && (!need || RUN.ans)); };
+  const need = ok && T.ask, chk = () => { $('#bNext').disabled = !PV && !(RUN.seq && (!need || RUN.ans)); }; chk();
   ov.querySelectorAll('[data-sc]').forEach(b => b.onclick = () => { RUN.seq = +b.dataset.sc; ov.querySelectorAll('[data-sc]').forEach(x => x.classList.toggle('on', x === b)); chk(); });
   ov.querySelectorAll('[data-ans]').forEach(b => b.onclick = () => { RUN.ans = b.dataset.ans; ov.querySelectorAll('[data-ans]').forEach(x => x.classList.toggle('on', x === b)); chk(); });
-  $('#bNext').onclick = async () => { RUN.where = $('#where').value.trim().slice(0, 200); $('#bNext').disabled = true; $('#bNext').textContent = 'Guardando…'; await saveRun(); ov.remove();
-    if(TI < PT.length - 1){ TI++; brief(); } else thanks(); };
+  $('#bNext').onclick = async () => { RUN.where = $('#where').value.trim().slice(0, 200); $('#bNext').disabled = true; $('#bNext').textContent = 'Guardando…'; if(!PV) await saveRun(); ov.remove();
+    if(PV) return pvHome(); if(TI < PT.length - 1){ TI++; brief(); } else thanks(); };
 }
 async function saveRun(){
   const body = { negocio:P.negocio.trim().slice(0, 80), distribuidor:P.distribuidor.trim().slice(0, 80), uso:P.uso, task:RUN.task, ok:RUN.ok, dur:RUN.dur, help:!!RUN.help, helpBy:RUN.helpBy || '', helpScreen:RUN.helpScreen || '', helpT:RUN.helpT ?? null, helpTaps:RUN.helpTaps ?? null, seq:RUN.seq || null, where:RUN.where || '', ans:RUN.ans || '',
@@ -437,12 +447,12 @@ function thanks(){
 
 /* ================= PANEL DEL EQUIPO ================= */
 let AUTH = false, DATA = [], SELT = TASKS[0].id, SELS = 'home';
-function login(){
+function login(next){
   bar(''); $('#hsub').textContent = 'Tareas · Resultados';
   $('#app').innerHTML = `<div class="card"><div class="eyebrow">Equipo Tokin</div><h1>Resultados de las tareas</h1>
     <form id="pf"><label class="f">Contraseña del equipo</label><input class="inp" name="pin" type="password" required>
     <button class="btn primary full" style="margin-top:16px">Entrar</button></form></div>`;
-  $('#pf').onsubmit = e => { e.preventDefault(); if(hashStr(e.target.pin.value.trim().toLowerCase()) === PIN_HASH){ AUTH = true; loadPanel(); } else toast('Contraseña incorrecta'); };
+  $('#pf').onsubmit = e => { e.preventDefault(); if(hashStr(e.target.pin.value.trim().toLowerCase()) === PIN_HASH){ AUTH = true; next ? pvHome() : loadPanel(); } else toast('Contraseña incorrecta'); };
 }
 async function loadPanel(){
   $('#wrap').classList.add('wide');
@@ -478,7 +488,7 @@ function panel(){
   const ways = {}; okL.forEach(d => { const l = (d.path || []).map(s => SCREENS[s] ? SCREENS[s].n : s).join(' → '); ways[l] = (ways[l] || 0) + 1; });
   const steps = T.screens || Object.keys(SCREENS); if(!steps.includes(SELS)) SELS = steps[0];
   const taps = L.flatMap(d => (d.taps || []).filter(x => x.s === SELS && !x.back));
-  $('#hright').innerHTML = `<div class="row"><a class="btn sm" href="index.html#equipo">← Encuesta</a><button class="btn sm" id="bXls" ${n ? '' : 'disabled'}>⬇ Excel</button></div>`;
+  $('#hright').innerHTML = `<div class="row"><a class="btn sm" href="index.html#equipo">← Encuesta</a><a class="btn sm" href="#recorrer">👁 Recorrer tareas</a><button class="btn sm" id="bXls" ${n ? '' : 'disabled'}>⬇ Excel</button></div>`;
   $('#app').innerHTML = `${TASKS.length > 1 ? `<div class="seg2">${TASKS.map(t => `<button data-t="${t.id}" class="${t.id === SELT ? 'on' : ''}">${esc(t.n)}</button>`).join('')}</div>` : ''}
     <div class="card"><div class="eyebrow">Tarea</div><h2>${esc(T.n)}</h2><p class="sub">"${esc(T.t)}"</p>
       <div class="stack" style="margin-top:16px">${['solo','pista','no'].map(k => `<i style="width:${n ? cnt(k) / n * 100 : 0}%;background:${RES[k][1]}" title="${RES[k][0]}"></i>`).join('')}</div>
@@ -539,7 +549,34 @@ async function exportXls(){
 }
 
 /* ---------- arranque ---------- */
-function route(){ if(location.hash === '#equipo') return AUTH ? loadPanel() : login(); $('#wrap').classList.remove('wide'); $('#hright').innerHTML = ''; startPDV(); }
+function pvBar(){ return `<div class="pvbar"><span><b>👁 Vista previa</b> · nada se guarda</span><span class="acts"><button id="pvZ" class="${PVZ ? 'on' : ''}">${PVZ ? 'Ocultar zonas' : 'Ver zonas tocables'}</button>${RUN && RUN.screen ? '<button id="pvH">Ver pista</button><button id="pvR">Reiniciar</button>' : ''}<button id="pvL">Tareas</button></span></div>`; }
+function bindPv(){
+  const z = $('#pvZ'); if(z) z.onclick = () => { PVZ = !PVZ; z.classList.toggle('on', PVZ); z.textContent = PVZ ? 'Ocultar zonas' : 'Ver zonas tocables'; paintZones(); };
+  const h = $('#pvH'); if(h) h.onclick = () => { if(RUN && RUN.screen) giveHint('boton'); };
+  const r = $('#pvR'); if(r) r.onclick = () => pvRun(TI);
+  const l = $('#pvL'); if(l) l.onclick = () => pvHome();
+}
+function paintZones(){
+  document.querySelectorAll('.zv').forEach(x => x.remove());
+  if(!PVZ || !RUN || !$('#ph')) return;
+  const T = PT[TI], S = SCREENS[RUN.screen], ok = (T.hints || {})[RUN.screen] || [];
+  S.z.forEach(z => { const d = document.createElement('div'); d.className = 'zv' + (ok.includes(z.id) ? ' ok' : z.go ? ' nav' : '');
+    Object.assign(d.style, { left:(z.x * 100) + '%', top:(z.y * 100) + '%', width:(z.w * 100) + '%', height:(z.h * 100) + '%' }); d.innerHTML = `<em>${esc(z.l)}</em>`; $('#ph').appendChild(d); });
+}
+function pvRun(i){ TI = i; RUN = null; brief(); window.scrollTo(0, 0); }
+function pvHome(){
+  PV = true; PT = TASKS; RUN = null; document.querySelectorAll('.ok-ov').forEach(o => o.remove()); clearTimeout(window.__t);
+  $('#wrap').classList.remove('wide'); $('#hsub').textContent = 'Tareas · Vista previa';
+  $('#hright').innerHTML = `<div class="row"><a class="btn sm" href="#equipo">← Resultados</a></div>`;
+  bar('');
+  $('#app').innerHTML = `<div class="card"><div class="eyebrow">Equipo Tokin · Vista previa</div><h1>Recorrer las tareas</h1>
+    <p class="sub">Probá cada tarea como la vería un PDV. Nada de lo que hagas acá se guarda ni aparece en los resultados.</p>
+    <div class="pvlist">${TASKS.map((t, i) => `<div class="pvt"><div><b>${i + 1}. ${esc(t.n)}</b><span>${esc(t.tShort)}</span></div><button class="btn primary sm" data-pv="${i}">Recorrer</button></div>`).join('')}</div>
+    <p class="sub" style="font-size:13px;margin-top:14px">Dentro de cada tarea: <b>Ver zonas tocables</b> muestra todo lo que se puede tocar en la pantalla (verde = camino correcto, violeta = lleva a otra pantalla). <b>Ver pista</b> muestra la ayuda que recibe el PDV.</p></div>`;
+  document.querySelectorAll('[data-pv]').forEach(b => b.onclick = () => pvRun(+b.dataset.pv));
+}
+function route(){ if(location.hash === '#recorrer') return AUTH ? pvHome() : login('#recorrer');
+  PV = false; if(location.hash === '#equipo') return AUTH ? loadPanel() : login(); $('#wrap').classList.remove('wide'); $('#hright').innerHTML = ''; startPDV(); }
 addEventListener('hashchange', route); route(); flushQ();
 </script>
 </body>
