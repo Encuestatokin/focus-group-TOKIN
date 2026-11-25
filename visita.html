@@ -126,7 +126,7 @@
 /* ---------- configuración ---------- */
 const FIREBASE_DB_URL = 'https://focusgroup-d9024-default-rtdb.firebaseio.com';
 const FIREBASE_PATH   = 'focusGroupTokin';
-const PIN_HASH        = 604612147;   // clave del equipo
+const PIN_HASH        = 1023178688;   // clave del equipo
 const ENCUESTA_URL    = 'https://encuestatokin.github.io/focus-group-TOKIN/';
 const api = (p = '') => `${FIREBASE_DB_URL}/${FIREBASE_PATH}${p}.json`;
 const hashStr = s => { let h = 5381; for(const ch of String(s)) h = ((h << 5) + h + ch.codePointAt(0)) | 0; return h; };
@@ -244,7 +244,7 @@ function renderLogin(){
   $('#app').innerHTML = `<div class="card"><div class="eyebrow">Equipo Tokin</div><h1>Guía de visita a PDV</h1><p class="sub">Leés cada pregunta, grabás la respuesta del kiosquero y queda escrita sola.</p>
     <form id="pf"><label class="f">Contraseña del equipo</label><input class="inp" name="pin" type="password" autocomplete="current-password" required>
     <div style="margin-top:16px"><button class="btn primary" style="width:100%">Entrar</button></div></form></div>`;
-  $('#pf').onsubmit = e => { e.preventDefault(); if(hashStr(e.target.pin.value) === PIN_HASH){ AUTH = true; const d = ls.get(DRAFT_KEY, null); if(d && d.V){ V = d.V; STEP = d.STEP || 0; } render(); } else toast('Contraseña incorrecta'); };
+  $('#pf').onsubmit = e => { e.preventDefault(); if(hashStr(e.target.pin.value.trim().toLowerCase()) === PIN_HASH){ AUTH = true; const d = ls.get(DRAFT_KEY, null); if(d && d.V){ V = d.V; STEP = d.STEP || 0; } render(); } else toast('Contraseña incorrecta'); };
 }
 let HTAB = 'tablero';
 const pctS = (n, d) => d ? Math.round(n / d * 100) + '%' : '–';
