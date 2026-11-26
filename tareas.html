@@ -233,6 +233,12 @@ const SCREENS = {
   choco:{ n:'Ofertas imperdibles · Chocolates', img:'choco', z:[] }
 };
 
+const cloneScr = (src, n, over) => ({ n, img:SCREENS[src].img, z:SCREENS[src].z.map(z => { const c = { id:z.id, l:z.l, x:z.x, y:z.y, w:z.w, h:z.h }; return over[z.id] ? { ...c, ...over[z.id] } : c; }) });
+SCREENS.choco3 = cloneScr('plist', 'Chocolates en oferta', { k_mate:{ done:true }, k_ofertas:{ go:'plist3' }, nav_promos:{ go:'pland3' } });
+SCREENS.plist3 = cloneScr('plist', 'Ofertas imperdibles (paso 3)', { k_mate:{ done:true }, nav_promos:{ go:'pland3' } });
+SCREENS.pland3 = cloneScr('pland', 'Promociones (paso 3)', { b_mate:{ done:true }, b_ofertas:{ go:'plist3' } });
+SCREENS.choco3.img = 'choco';
+
 const TASKS = [
   { id:'of1', group:'ofertas', n:'Paso 1 · Entrar a Ofertas imperdibles', start:'pland', optimal:1,
     hints:{ pland:['b_ofertas'] },
@@ -250,7 +256,15 @@ const TASKS = [
     screens:['plist','filt1','filt2','pland2'],
     t:'Bueno, ahora andá a los chocolates de estas ofertas.',
     tShort:'Andá a los chocolates de estas ofertas.',
-    okMsg:'¡Listo! Llegaste a los chocolates en oferta.',
+    okMsg:'¡Listo! Llegaste a los chocolates en oferta.' },
+  { id:'of3', group:'ofertas', n:'Paso 3 · Entrar al Día del Mate', start:'choco3', backTo:'plist3', optimal:1,
+    hints:{ choco3:['k_mate'], plist3:['k_mate'], pland3:['b_mate'] },
+    hintAfterMisses:3, hintAfterSec:20,
+    funnel:[['Chocolates en oferta',['choco3']],['Volvió a Ofertas imperdibles',['plist3']],['Volvió a Promociones',['pland3']]],
+    screens:['choco3','plist3','pland3'],
+    t:'Por último, entrá a la promo del Día del Mate.',
+    tShort:'Entrá a la promo del Día del Mate.',
+    okMsg:'¡Listo! Encontraste la promo del Día del Mate.',
     ask:{ q:'En esta sección, cuando tocás un banner, ¿qué te muestra?', opts:['Los productos que tienen esa promo','Solo información de la promo','Publicidad, no se puede comprar','No sé'], ok:'Los productos que tienen esa promo', kpi:'Entendió que el banner lleva a los productos' } }
 ];
 const PTQ = new URLSearchParams(location.search).get('t'); let PT = (PTQ && TASKS.filter(t => PTQ.split(',').includes(t.id)).length) ? TASKS.filter(t => PTQ.split(',').includes(t.id)) : TASKS;
