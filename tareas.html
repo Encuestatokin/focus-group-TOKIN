@@ -135,6 +135,13 @@
     .bar{padding:10px 12px calc(10px + env(safe-area-inset-bottom));}
     .ok-ov .card{padding:18px 14px;} .ok-ov h2{font-size:20px;}
   }  @media(max-width:360px){ .pvbar>span:first-child{display:none;} .pvbar .acts{width:100%;justify-content:space-between;} }
+  .task{margin:0 -16px 14px;padding:12px 16px 14px;background:linear-gradient(180deg,rgba(14,22,70,.97),rgba(7,11,38,.97));border-bottom:2px solid rgba(255,200,60,.55);box-shadow:0 8px 20px rgba(0,0,0,.35);}
+  .task .tl{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;}
+  .task .tl:before{content:"👉";font-size:14px;letter-spacing:0;}
+  .task p{font-family:var(--fd,inherit);font-size:20px;font-weight:700;line-height:1.25;margin-top:5px;color:#fff;}
+  @keyframes taskIn{0%{background:rgba(255,200,60,.35)}100%{}}
+  .task.flash{animation:taskIn 1.2s ease-out;}
+  @media(max-width:480px){ .task{margin:0 -12px 12px;padding:11px 12px 13px;} .task p{font-size:19px;} }
 </style>
 </head>
 <body>
@@ -341,7 +348,7 @@ function paintHint(scroll){
 function screen(){
   const T = PT[TI], S = SCREENS[RUN.screen];
   RUN.miss = 0; clearTimeout(RUN.timer);
-  $('#app').innerHTML = `${PV ? pvBar() : ''}<div class="task"><div class="tl">Tu tarea</div><p>${esc(T.tShort)}</p></div>
+  $('#app').innerHTML = `${PV ? pvBar() : ''}<div class="task${RUN.path.length <= 1 ? ' flash' : ''}"><div class="tl">Tu tarea</div><p>${esc(T.tShort)}</p></div>
     <div class="hintmsg" id="hintmsg" hidden>💡 Te damos una pista: probá tocando donde brilla.</div>
     <div class="phone" id="ph"><img src="${IMGS[S.img]}" alt="${esc(S.n)}" draggable="false"><div class="hit" id="hit"></div></div>`;
   bar(`${RUN.path.length > 1 || T.backTo ? '<button class="btn" id="bBack" style="flex:0 0 auto">‹ Atrás</button>' : ''}<button class="btn" id="bNo">No lo encuentro</button>`);
