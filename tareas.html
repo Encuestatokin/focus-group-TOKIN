@@ -243,13 +243,13 @@ const TASKS = [
     t:'Estás en la sección Promociones. Entrá a las Ofertas imperdibles.',
     tShort:'Entrá a las Ofertas imperdibles.',
     okMsg:'¡Bien! Llegaste a las Ofertas imperdibles.', failMsg:'Te llevamos a las Ofertas imperdibles.' },
-  { id:'of2', group:'ofertas', n:'Paso 2 · Ver solo chocolates', start:'plist', backTo:'pland2', optimal:3,
+  { id:'of2', group:'ofertas', n:'Paso 2 · Ir a chocolates', start:'plist', backTo:'pland2', optimal:3,
     hints:{ plist:['filtros'], filt1:['c_choco'], filt2:['aplicar'], pland2:['b_ofertas'] },
     hintAfterMisses:3, hintAfterSec:25,
     funnel:[['Ofertas imperdibles',['plist']],['Abrió Filtros',['filt1','filt2']],['Eligió Chocolates',['filt2']]],
     screens:['plist','filt1','filt2','pland2'],
-    t:'Dentro de estas ofertas, mostrá solo los chocolates.',
-    tShort:'Mostrá solo los chocolates de estas ofertas.',
+    t:'Bueno, ahora andá a los chocolates de estas ofertas.',
+    tShort:'Andá a los chocolates de estas ofertas.',
     okMsg:'¡Listo! Llegaste a los chocolates en oferta.',
     ask:{ q:'En esta sección, cuando tocás un banner, ¿qué te muestra?', opts:['Los productos que tienen esa promo','Solo información de la promo','Publicidad, no se puede comprar','No sé'], ok:'Los productos que tienen esa promo', kpi:'Entendió que el banner lleva a los productos' } }
 ];
@@ -339,7 +339,7 @@ function finish(ok){
   if(T.group && N && N.group === T.group){
     const ov = document.createElement('div'); ov.className = 'ok-ov';
     ov.innerHTML = `<div class="card"><div class="big">${ok ? '✅' : '👉'}</div><h2>${ok ? (RUN.help ? '¡Bien! Lo encontraste con la pista.' : esc(T.okMsg)) : esc(T.failMsg || 'Seguimos con el próximo paso.')}</h2>
-      <p class="sub" style="color:#fff;font-weight:700;font-size:17px;margin-top:10px">Ahora: ${esc(N.t)}</p>
+      <p class="sub" style="color:#fff;font-weight:700;font-size:17px;margin-top:10px">${esc(N.t)}</p>
       <button class="btn primary full" id="bNext" style="margin-top:16px">Seguir</button>${PV ? '<p class="sub" style="font-size:12px;margin-top:8px">Vista previa · no se guarda.</p>' : ''}</div>`;
     document.body.appendChild(ov); bar('');
     $('#bNext').onclick = async () => { $('#bNext').disabled = true; if(!PV) await saveRun(); ov.remove(); TI++;
