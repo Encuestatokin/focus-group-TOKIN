@@ -142,6 +142,15 @@
   @keyframes taskIn{0%{background:rgba(255,200,60,.35)}100%{}}
   .task.flash{animation:taskIn 1.2s ease-out;}
   @media(max-width:480px){ .task{margin:0 -12px 12px;padding:11px 12px 13px;} .task p{font-size:19px;} }
+  .five-ov{position:fixed;inset:0;z-index:60;background:#070b26;display:flex;align-items:center;justify-content:center;padding:44px 10px 18px;opacity:0;transition:opacity .25s;}
+  .five-ov.go{opacity:1;} .five-ov img{max-width:100%;max-height:100%;object-fit:contain;border-radius:18px;box-shadow:0 0 0 1px rgba(140,170,255,.35);}
+  .five-pill{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#FFD23F;color:#14217A;font-weight:800;font-size:15px;padding:5px 14px;border-radius:999px;}
+  .five-bar{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.12);} .five-bar i{display:block;height:100%;width:100%;background:#FFD23F;transform-origin:left;transform:scaleX(1);}
+  .five-ov.go .five-bar i{transform:scaleX(0);transition:transform 5s linear;}
+  .opts5{display:grid;gap:8px;} .opts5 button{font:inherit;font-size:16px;text-align:left;padding:13px 14px;border-radius:14px;border:1px solid var(--line-strong);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;display:flex;gap:10px;align-items:center;}
+  .opts5 button.on{border-color:var(--cyan);background:rgba(34,225,255,.12);font-weight:700;}
+  .opts5 .chk i{width:20px;height:20px;flex:none;border-radius:6px;border:2px solid var(--faint);display:grid;place-items:center;font-style:normal;font-size:13px;}
+  .opts5 .chk.on i{background:var(--cyan);border-color:var(--cyan);} .opts5 .chk.on i:after{content:"✓";color:#071026;font-weight:900;}
 </style>
 </head>
 <body>
@@ -265,6 +274,10 @@ SCREENS.choco3.img = 'choco';
 SCREENS.mate = { n:'Día del Mate · catálogo', img:'mate', z:[] };
 
 const TASKS = [
+  { id:'f5s', five:true, n:'Primera impresión · 5 segundos', img:'pland', secs:5, start:'pland', screens:['pland'],
+    t:'Mirá esta pantalla nueva de Tokin durante 5 segundos.', tShort:'Primera impresión de la sección Promociones.',
+    q1:{ q:'¿Para qué sirve la pantalla que viste?', opts:[['promos','Para ver promociones y ofertas'],['buscar','Para buscar un producto puntual'],['pedidos','Para ver mis pedidos'],['nose','No sé']], ok:'promos' },
+    q2:{ q:'¿Qué promociones viste? Marcá todas las que recuerdes.', opts:[['mate','Día Nacional del Mate',1],['cyber','Cyber Tokin',0],['bonobon','Bon o Bon · Regalá dulzura',1],['navidad','Navidad en Tokin',0],['ofertas','Ofertas imperdibles',1],['pascuas','Pascuas',0]] } },
   { id:'of1', group:'ofertas', n:'Paso 1 · Entrar a Ofertas imperdibles', start:'pland', optimal:1,
     hints:{ pland:['b_ofertas'] },
     hintAfterMisses:3, hintAfterSec:20,
@@ -323,6 +336,7 @@ function startPDV(){
 }
 function brief(){
   const T = PT[TI];
+  if(T.five) return fiveIntro(T);
   $('#app').innerHTML = `${PV ? pvBar() : ''}<div class="card"><div class="eyebrow">${T.group ? 'Recorrido · paso ' + (PT.filter(x => x.group === T.group).indexOf(T) + 1) + ' de ' + PT.filter(x => x.group === T.group).length : `Tarea ${TI + 1} de ${PT.length}`}</div><h1>${esc(T.t)}</h1>
     <p class="sub">${T.intro ? esc(T.intro) + ' ' : ''}Vas a ver la app de Tokin. Tocá donde tocarías para hacerlo. Podés bajar en las pantallas. Si no lo encontrás, no pasa nada: tocá "No lo encuentro".</p></div>`;
   bar(`<button class="btn primary" id="bGo">Empezar la tarea</button>`); if(PV) bindPv();
@@ -400,7 +414,7 @@ function finish(ok){
     if(PV) return pvHome(); if(TI < PT.length - 1){ TI++; brief(); } else thanks(); };
 }
 async function saveRun(){
-  const body = { negocio:P.negocio.trim().slice(0, 80), distribuidor:P.distribuidor.trim().slice(0, 80), uso:P.uso, task:RUN.task, ok:RUN.ok, dur:RUN.dur, help:!!RUN.help, helpBy:RUN.helpBy || '', helpScreen:RUN.helpScreen || '', helpT:RUN.helpT ?? null, helpTaps:RUN.helpTaps ?? null, seq:RUN.seq || null, where:RUN.where || '', ans:RUN.ans || '',
+  const body = { negocio:P.negocio.trim().slice(0, 80), distribuidor:P.distribuidor.trim().slice(0, 80), uso:P.uso, task:RUN.task, ok:RUN.ok, dur:RUN.dur, help:!!RUN.help, helpBy:RUN.helpBy || '', helpScreen:RUN.helpScreen || '', helpT:RUN.helpT ?? null, helpTaps:RUN.helpTaps ?? null, seq:RUN.seq || null, where:RUN.where || '', ans:RUN.ans || '', ...(RUN.rec ? { rec:RUN.rec, recOk:RUN.recOk, recFalse:RUN.recFalse } : {}),
     path:RUN.path, taps:RUN.taps.slice(0, 150), toques:RUN.taps.length, ts:{ '.sv':'timestamp' }, disp:innerWidth < 760 ? 'celular' : 'computadora' };
   for(let i = 0; i < 3; i++){ try{ const r = await fetch(api('/tareas'), { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(body) }); if(r.ok) return; }catch(e){} await new Promise(r => setTimeout(r, 900)); }
   try{ const q = JSON.parse(localStorage.getItem('tokinTareasQ') || '[]'); q.push(body); localStorage.setItem('tokinTareasQ', JSON.stringify(q)); }catch(e){}
@@ -448,6 +462,7 @@ function heat(cv, pts){
 }
 function panel(){
   const T = TASKS.find(t => t.id === SELT), L = DATA.filter(d => d.task === SELT), n = L.length;
+  if(T.five) return panelFive(T, L, n);
   const cnt = k => L.filter(d => resOf(d) === k).length, okL = L.filter(d => d.ok), soloL = L.filter(d => resOf(d) === 'solo');
   const reach = s => L.filter(d => (d.path || []).includes(s)).length, reachAny = ss => L.filter(d => (d.path || []).some(x => ss.includes(x))).length;
   const firstHome = {}; L.forEach(d => { const f = (d.taps || []).find(x => x.s === T.start); if(f){ const l = zl(T.start, f.a); firstHome[l] = (firstHome[l] || 0) + 1; } });
@@ -506,11 +521,33 @@ function panel(){
     try{ const r = await fetch(api('/tareas/' + b.dataset.del), { method:'DELETE' }); if(!r.ok) throw 0; DATA = DATA.filter(d => d.k !== b.dataset.del); toast('Eliminado'); panel(); }catch(e){ toast('No se pudo eliminar'); }
   });
 }
+function panelFive(T, L, n){
+  const real = T.q2.opts.filter(o => o[2]), fake = T.q2.opts.filter(o => !o[2]);
+  const c = id => L.filter(d => (d.rec || []).includes(id)).length;
+  const avg = n ? (L.reduce((a, d) => a + (d.recOk || 0), 0) / n).toFixed(1) : '–';
+  $('#hright').innerHTML = `<div class="row"><a class="btn sm" href="index.html#equipo">← Encuesta</a><a class="btn sm" href="#recorrer">👁 Recorrer tareas</a><button class="btn sm" id="bXls" ${DATA.length ? '' : 'disabled'}>⬇ Excel</button></div>`;
+  $('#app').innerHTML = `<div class="seg2">${TASKS.map(t => `<button data-t="${t.id}" class="${t.id === SELT ? 'on' : ''}">${esc(t.n)}</button>`).join('')}</div>
+    <div class="card"><div class="eyebrow">Prueba de 5 segundos</div><h2>${esc(T.n)}</h2><p class="sub">El PDV ve la pantalla de Promociones ${T.secs} segundos, sin tocar nada. Después responde para qué sirve y qué promociones recuerda.</p></div>
+    <div class="kpis"><div class="kpi"><b>${n}</b><small>Participantes</small></div>
+      <div class="kpi"><b style="color:var(--green)">${pct(L.filter(d => d.ok).length, n)}</b><small>Entendió que es para ver promociones</small></div>
+      <div class="kpi"><b>${avg}<small style="font-size:14px"> / ${real.length}</small></b><small>Promociones reales recordadas (promedio)</small></div>
+      <div class="kpi"><b style="color:var(--cyan)">${pct(c('mate'), n)}</b><small>Recordó el Día del Mate</small></div>
+      <div class="kpi"><b style="color:var(--red)">${pct(L.filter(d => d.recFalse > 0).length, n)}</b><small>Marcó una promo que no estaba</small></div></div>
+    <div class="grid2">
+      <div class="card"><div class="eyebrow" style="margin-bottom:14px">${esc(T.q1.q)}</div>${barsH(T.q1.opts.map(o => [o[1] + (o[0] === T.q1.ok ? ' ✓' : ''), L.filter(d => d.ans === o[0]).length]), n, 'var(--cyan)')}</div>
+      <div class="card"><div class="eyebrow" style="margin-bottom:14px">Qué promociones recordaron</div>
+        ${barsH(real.map(o => ['✓ ' + o[1], c(o[0])]), n, 'var(--green)')}
+        <div class="eyebrow" style="margin:18px 0 10px;color:var(--red)">No estaban en la pantalla</div>${barsH(fake.map(o => [o[1], c(o[0])]), n, 'var(--red)')}<div style="margin-top:14px">${barsH([['No recuerdo ninguna', c('ninguna')]], n, 'var(--faint)')}</div></div></div>
+    <div class="card"><div class="eyebrow" style="margin-bottom:12px">Participantes</div>${n ? `<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Negocio</th><th>Distribuidor</th><th>Para qué sirve</th><th>Recordó</th></tr></thead><tbody>
+      ${L.map(d => `<tr><td>${esc(d.negocio)}</td><td>${esc(d.distribuidor)}</td><td>${esc((T.q1.opts.find(o => o[0] === d.ans) || [, '–'])[1])}${d.ok ? ' ✓' : ''}</td><td>${esc((d.rec || []).map(r => (T.q2.opts.find(o => o[0] === r) || [, 'Ninguna'])[1]).join(', '))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Todavía no hay datos.</p>'}</div>`;
+  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { SELT = b.dataset.t; SELS = (TASKS.find(t => t.id === SELT).screens || [])[0]; panel(); });
+  if($('#bXls')) $('#bXls').onclick = exportXls;
+}
 function loadXlsx(){ return window.XLSX ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
 async function exportXls(){
   const T = n => (TASKS.find(t => t.id === n) || {}).n || n;
   const part = DATA.map(d => ({ 'Fecha':d.ts ? new Date(d.ts).toLocaleString('es-AR') : '', 'Negocio':d.negocio, 'Distribuidor':d.distribuidor, 'Usa Tokin':(USO.find(u => u[0] === d.uso) || [, ''])[1], 'Tarea':T(d.task),
-    'Resultado':RES[resOf(d)][0], 'Necesitó pista':d.help ? 'Sí' : 'No', 'Pista en pantalla':d.help ? ((SCREENS[d.helpScreen] || {}).n || '') : '', 'Pista porque':d.help ? (HINT_TXT[d.helpBy] || '') : '', 'Segundo de la pista':d.help ? d.helpT : '', 'Toques antes de la pista':d.help ? d.helpTaps : '', 'Tiempo (s)':d.dur, 'Toques':d.toques, 'Facilidad (1-5)':d.seq || '', 'Respuesta comprensión':d.ans || '', 'Camino':(d.path || []).map(s => SCREENS[s] ? SCREENS[s].n : s).join(' → '), 'Dónde lo buscaría':d.where || '', 'Dispositivo':d.disp || '' }));
+    'Resultado':RES[resOf(d)][0], 'Necesitó pista':d.help ? 'Sí' : 'No', 'Pista en pantalla':d.help ? ((SCREENS[d.helpScreen] || {}).n || '') : '', 'Pista porque':d.help ? (HINT_TXT[d.helpBy] || '') : '', 'Segundo de la pista':d.help ? d.helpT : '', 'Toques antes de la pista':d.help ? d.helpTaps : '', 'Tiempo (s)':d.dur, 'Toques':d.toques, 'Facilidad (1-5)':d.seq || '', 'Respuesta comprensión':d.ans || '', 'Promos que recordó (5 s)':d.rec ? d.rec.join(', ') : '', 'Reales recordadas':d.rec ? d.recOk : '', 'Falsas marcadas':d.rec ? d.recFalse : '', 'Camino':(d.path || []).map(s => SCREENS[s] ? SCREENS[s].n : s).join(' → '), 'Dónde lo buscaría':d.where || '', 'Dispositivo':d.disp || '' }));
   const toques = []; DATA.forEach(d => (d.taps || []).forEach((x, i) => toques.push({ 'Negocio':d.negocio, 'Tarea':T(d.task), 'Orden':i + 1, 'Pantalla':SCREENS[x.s] ? SCREENS[x.s].n : x.s, 'Elemento':zl(x.s, x.a), 'Avanzó':x.nav ? 'Sí' : 'No', 'Con pista visible':x.h ? 'Sí' : 'No', 'Segundo':x.t, 'X %':Math.round(x.x * 1000) / 10, 'Y %':Math.round(x.y * 1000) / 10 })));
   try{ await loadXlsx(); const wb = XLSX.utils.book_new();
     const add = (name, rows) => { const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ 'Sin datos':'' }]); ws['!cols'] = Object.keys(rows[0] || { a:1 }).map(k => ({ wch:Math.max(12, k.length + 2) })); XLSX.utils.book_append_sheet(wb, ws, name); };
@@ -519,6 +556,43 @@ async function exportXls(){
 }
 
 /* ---------- arranque ---------- */
+function fiveIntro(T){
+  RUN = null; bar(`<button class="btn primary" id="bGo">Ver la pantalla</button>`);
+  $('#app').innerHTML = `${PV ? pvBar() : ''}<div class="card"><div class="eyebrow">Primera impresión</div><h1>Mirá esta pantalla durante ${T.secs} segundos</h1>
+    <p class="sub">Te vamos a mostrar una pantalla nueva de Tokin solo por ${T.secs} segundos. No hace falta tocar nada: mirala con atención. Después te hacemos dos preguntas cortas.</p></div>`;
+  if(PV) bindPv();
+  $('#bGo').onclick = () => fiveShow(T);
+}
+function fiveShow(T){
+  bar(''); const t0 = performance.now(); let left = T.secs;
+  const ov = document.createElement('div'); ov.className = 'five-ov';
+  ov.innerHTML = `<div class="five-pill"><span id="fiveN">${left}</span> s</div><img src="${IMGS[T.img]}" alt=""><div class="five-bar"><i></i></div>`;
+  document.body.appendChild(ov); requestAnimationFrame(() => ov.classList.add('go'));
+  const iv = setInterval(() => { left--; const n = $('#fiveN'); if(n) n.textContent = Math.max(left, 0); if(left <= 0){ clearInterval(iv); ov.remove(); fiveAsk(T, t0); } }, 1000);
+}
+function fiveAsk(T, t0){
+  RUN = { task:T.id, start:t0, path:[T.start], taps:[], rec:[] };
+  const draw = () => {
+    $('#app').innerHTML = `${PV ? pvBar() : ''}<div class="card"><div class="eyebrow">Primera impresión · pregunta 1 de 2</div><h2 style="margin-bottom:12px">${esc(T.q1.q)}</h2>
+      <div class="opts5">${T.q1.opts.map(o => `<button data-q1="${o[0]}" class="${RUN.ans === o[0] ? 'on' : ''}">${esc(o[1])}</button>`).join('')}</div></div>
+      <div class="card"><div class="eyebrow">Pregunta 2 de 2</div><h2 style="margin-bottom:12px">${esc(T.q2.q)}</h2>
+      <div class="opts5">${T.q2.opts.map(o => `<button data-q2="${o[0]}" class="chk ${RUN.rec.includes(o[0]) ? 'on' : ''}"><i></i>${esc(o[1])}</button>`).join('')}
+      <button data-q2="ninguna" class="chk ${RUN.rec.includes('ninguna') ? 'on' : ''}"><i></i>No recuerdo ninguna</button></div></div>`;
+    if(PV) bindPv();
+    document.querySelectorAll('[data-q1]').forEach(b => b.onclick = () => { RUN.ans = b.dataset.q1; draw(); });
+    document.querySelectorAll('[data-q2]').forEach(b => b.onclick = () => { const v = b.dataset.q2;
+      if(v === 'ninguna') RUN.rec = RUN.rec.includes('ninguna') ? [] : ['ninguna'];
+      else { RUN.rec = RUN.rec.filter(x => x !== 'ninguna'); RUN.rec = RUN.rec.includes(v) ? RUN.rec.filter(x => x !== v) : [...RUN.rec, v]; }
+      const y = scrollY; draw(); window.scrollTo(0, y); });
+    bar(`<button class="btn primary" id="bGo" ${RUN.ans && RUN.rec.length ? '' : 'disabled'}>Seguir</button>`);
+    $('#bGo').onclick = async () => { $('#bGo').disabled = true;
+      const real = T.q2.opts.filter(o => o[2]).map(o => o[0]);
+      RUN.ok = RUN.ans === T.q1.ok; RUN.dur = +((performance.now() - t0) / 1000).toFixed(1);
+      RUN.recOk = RUN.rec.filter(x => real.includes(x)).length; RUN.recFalse = RUN.rec.filter(x => x !== 'ninguna' && !real.includes(x)).length;
+      if(!PV) await saveRun(); if(PV) return pvHome(); TI++; brief(); window.scrollTo(0, 0); };
+  };
+  draw(); window.scrollTo(0, 0);
+}
 function pvBar(){ return `<div class="pvbar"><span><b>👁 Previa</b></span><span class="acts"><button id="pvZ" class="${PVZ ? 'on' : ''}">${PVZ ? 'Ocultar zonas' : 'Ver zonas'}</button>${RUN && RUN.screen ? '<button id="pvH">Pista</button><button id="pvR">Reiniciar</button>' : ''}<button id="pvL">Tareas</button></span></div>`; }
 function bindPv(){
   const z = $('#pvZ'); if(z) z.onclick = () => { PVZ = !PVZ; z.classList.toggle('on', PVZ); z.textContent = PVZ ? 'Ocultar zonas' : 'Ver zonas'; paintZones(); };
